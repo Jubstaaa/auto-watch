@@ -1,0 +1,25 @@
+{
+    "name": "auto-watch",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "license": "MIT",
+    "scripts": {
+        "build": "esbuild src/main.ts --bundle --platform=node --target=node24 --outfile=dist/index.js",
+        "test": "vitest run",
+        "typecheck": "tsc --noEmit",
+        "lint": "prettier --check ."
+    },
+    "dependencies": {
+        "@actions/core": "^3.0.1",
+        "@octokit/plugin-throttling": "^11.0.5",
+        "@octokit/rest": "^22.0.1"
+    },
+    "devDependencies": {
+        "@types/node": "^26.6.5",
+        "esbuild": "^0.28.2",
+        "prettier": "^3.9.10",
+        "typescript": "^7.0.2",
+        "vitest": "^5.0.4"
+    }
+}

@@ -1,0 +1,33 @@
+name: Auto Watch Repositories
+description: Watch every repo you own or administer as soon as it is created, the way GitHub used to.
+author: Jubstaaa
+branding:
+    icon: eye
+    color: blue
+inputs:
+    token:
+        description: Classic personal access token with the notifications scope (read:org for orgs, repo for private repos)
+        required: true
+    backfill:
+        description: Consider every repo, not only the ones created recently
+        default: 'false'
+    since-hours:
+        description: How far back "recently" reaches, in hours
+        default: '24'
+    include-orgs:
+        description: Also cover repos in organizations where you are an admin
+        default: 'true'
+    exclude:
+        description: owner/name patterns to skip, comma or newline separated, * as wildcard
+        default: ''
+    dry-run:
+        description: Show what would be watched without changing anything
+        default: 'false'
+outputs:
+    watched:
+        description: Number of repos watched in this run
+    watched-repos:
+        description: JSON array of the repos watched in this run
+runs:
+    using: node24
+    main: dist/index.js
