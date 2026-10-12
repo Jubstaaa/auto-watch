@@ -1,0 +1,26 @@
+name: auto-watch
+on:
+    schedule: [{ cron: '17 * * * *' }]
+    workflow_dispatch:
+        inputs:
+            backfill:
+                description: Watch every repo, not only the ones created in the last day
+                type: boolean
+                default: false
+            dry-run:
+                description: Show what would be watched without changing anything
+                type: boolean
+                default: false
+permissions:
+    actions: write
+    contents: read
+jobs:
+    watch:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+            - uses: ./
+              with:
+                  token: ${{ secrets.AUTO_WATCH_TOKEN }}
+                  backfill: ${{ inputs.backfill || false }}
+                  dry-run: ${{ inputs.dry-run || false }}
