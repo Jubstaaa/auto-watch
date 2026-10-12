@@ -23,6 +23,9 @@ inputs:
     dry-run:
         description: Show what would be watched without changing anything
         default: 'false'
+    github-token:
+        description: Token used to keep this workflow's schedule alive. The default is fine.
+        default: ${{ github.token }}
 outputs:
     watched:
         description: Number of repos watched in this run
