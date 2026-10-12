@@ -19404,7 +19404,7 @@ var require_light = __commonJS({
           }
           return this.Events.trigger("scheduled", { args: this.args, options: this.options });
         }
-        async doExecute(chained, clearGlobalState, run2, free) {
+        async doExecute(chained, clearGlobalState, run, free) {
           var error2, eventInfo, passed;
           if (this.retryCount === 0) {
             this._assertStatus("RUNNING");
@@ -19424,10 +19424,10 @@ var require_light = __commonJS({
             }
           } catch (error1) {
             error2 = error1;
-            return this._onFailure(error2, eventInfo, clearGlobalState, run2, free);
+            return this._onFailure(error2, eventInfo, clearGlobalState, run, free);
           }
         }
-        doExpire(clearGlobalState, run2, free) {
+        doExpire(clearGlobalState, run, free) {
           var error2, eventInfo;
           if (this._states.jobStatus(this.options.id === "RUNNING")) {
             this._states.next(this.options.id);
@@ -19435,9 +19435,9 @@ var require_light = __commonJS({
           this._assertStatus("EXECUTING");
           eventInfo = { args: this.args, options: this.options, retryCount: this.retryCount };
           error2 = new BottleneckError$1(`This job timed out after ${this.options.expiration} ms.`);
-          return this._onFailure(error2, eventInfo, clearGlobalState, run2, free);
+          return this._onFailure(error2, eventInfo, clearGlobalState, run, free);
         }
-        async _onFailure(error2, eventInfo, clearGlobalState, run2, free) {
+        async _onFailure(error2, eventInfo, clearGlobalState, run, free) {
           var retry, retryAfter;
           if (clearGlobalState()) {
             retry = await this.Events.trigger("failed", error2, eventInfo);
@@ -19445,7 +19445,7 @@ var require_light = __commonJS({
               retryAfter = ~~retry;
               this.Events.trigger("retry", `Retrying ${this.options.id} after ${retryAfter} ms`, eventInfo);
               this.retryCount++;
-              return run2(retryAfter);
+              return run(retryAfter);
             } else {
               this.doDone(eventInfo);
               await free(this.options, eventInfo);
@@ -20083,17 +20083,17 @@ var require_light = __commonJS({
             }
           }
           _run(index, job, wait) {
-            var clearGlobalState, free, run2;
+            var clearGlobalState, free, run;
             job.doRun();
             clearGlobalState = this._clearGlobalState.bind(this, index);
-            run2 = this._run.bind(this, index, job);
+            run = this._run.bind(this, index, job);
             free = this._free.bind(this, index, job);
             return this._scheduled[index] = {
               timeout: setTimeout(() => {
-                return job.doExecute(this._limiter, clearGlobalState, run2, free);
+                return job.doExecute(this._limiter, clearGlobalState, run, free);
               }, wait),
               expiration: job.options.expiration != null ? setTimeout(function() {
-                return job.doExpire(clearGlobalState, run2, free);
+                return job.doExpire(clearGlobalState, run, free);
               }, wait + job.options.expiration) : void 0,
               job
             };
@@ -25233,6 +25233,27 @@ var createApi = (token, workflowToken) => {
   };
 };
 
+// src/inputs.ts
+var flag = (value, fallback) => value.trim() === "" ? fallback : value.trim().toLowerCase() === "true";
+var parseInputs = (read) => {
+  const token = read("token").trim();
+  if (!token) throw new Error("The token input is empty. Add a classic token as a secret.");
+  const rawHours = read("since-hours").trim() || "24";
+  const sinceHours = Number(rawHours);
+  if (!Number.isFinite(sinceHours) || sinceHours <= 0) {
+    throw new Error(`since-hours must be a positive number, got "${rawHours}"`);
+  }
+  const exclude = read("exclude").split(/[,\n]/).map((pattern) => pattern.trim().toLowerCase()).filter(Boolean);
+  return {
+    token,
+    backfill: flag(read("backfill"), false),
+    sinceHours,
+    includeOrgs: flag(read("include-orgs"), true),
+    exclude,
+    dryRun: flag(read("dry-run"), false)
+  };
+};
+
 // src/candidates.ts
 var HOUR = 60 * 60 * 1e3;
 var matchesPattern = (fullName, pattern) => {
@@ -25241,16 +25262,23 @@ var matchesPattern = (fullName, pattern) => {
 };
 var isRecent = (createdAt, sinceHours, now) => now.getTime() - new Date(createdAt).getTime() <= sinceHours * HOUR;
 var orgReposOf = async (api, warnings) => {
+  let orgs;
   try {
-    const orgs = await api.adminOrgs();
-    const lists = await Promise.all(orgs.map((org) => api.orgRepos(org)));
-    return lists.flat();
+    orgs = await api.adminOrgs();
   } catch (error2) {
     warnings.push(
       `Skipped organization repos: ${error2.message}. Add the read:org scope to cover them.`
     );
     return [];
   }
+  const lists = await Promise.allSettled(orgs.map((org) => api.orgRepos(org)));
+  return lists.flatMap((list, index) => {
+    if (list.status === "fulfilled") return list.value;
+    warnings.push(
+      `Skipped ${orgs[index]}: ${list.reason.message}. If the org uses SAML SSO, authorize the token for it.`
+    );
+    return [];
+  });
 };
 var collectCandidates = async (api, settings, now) => {
   const warnings = [];
@@ -25272,27 +25300,6 @@ var collectCandidates = async (api, settings, now) => {
     return true;
   });
   return { repos, excluded, warnings };
-};
-
-// src/inputs.ts
-var flag = (value, fallback) => value.trim() === "" ? fallback : value.trim().toLowerCase() === "true";
-var parseInputs = (read) => {
-  const token = read("token").trim();
-  if (!token) throw new Error("The token input is empty. Add a classic token as a secret.");
-  const rawHours = read("since-hours").trim() || "24";
-  const sinceHours = Number(rawHours);
-  if (!Number.isFinite(sinceHours) || sinceHours <= 0) {
-    throw new Error(`since-hours must be a positive number, got "${rawHours}"`);
-  }
-  const exclude = read("exclude").split(/[,\n]/).map((pattern) => pattern.trim().toLowerCase()).filter(Boolean);
-  return {
-    token,
-    backfill: flag(read("backfill"), false),
-    sinceHours,
-    includeOrgs: flag(read("include-orgs"), true),
-    exclude,
-    dryRun: flag(read("dry-run"), false)
-  };
 };
 
 // src/keepalive.ts
@@ -25376,33 +25383,56 @@ var watchAll = async (api, repos, dryRun) => {
   return result;
 };
 
+// src/run.ts
+var runAutoWatch = async (api, settings, env, now) => {
+  const warnings = [];
+  if (env.repository && env.workflowRef && !settings.dryRun) {
+    const warning2 = await keepAlive(api, env.repository, workflowFileOf(env.workflowRef));
+    if (warning2) warnings.push(warning2);
+  }
+  try {
+    checkToken(await api.identity());
+  } catch (error2) {
+    const failure = error2.message;
+    return { watched: [], log: [], warnings, summary: `## ${failure}`, failure };
+  }
+  const candidates = await collectCandidates(api, settings, now);
+  candidates.warnings.push(...warnings);
+  const result = await watchAll(api, candidates.repos, settings.dryRun);
+  const verb = settings.dryRun ? "Would watch" : "Watching";
+  return {
+    watched: result.watched,
+    log: result.watched.map((name) => `${verb} ${name}`),
+    warnings: [
+      ...candidates.warnings,
+      ...result.failed.map(({ fullName, reason }) => `${fullName}: ${reason}`)
+    ],
+    summary: renderSummary(result, candidates, settings.dryRun),
+    failure: runFailed(result) ? "Every watch attempt failed. See the warnings above." : null
+  };
+};
+
 // src/main.ts
-var run = async () => {
+var main = async () => {
   const settings = parseInputs((name) => getInput(name));
   const api = createApi(settings.token, getInput("github-token"));
-  checkToken(await api.identity());
-  const candidates = await collectCandidates(api, settings, /* @__PURE__ */ new Date());
-  for (const warning2 of candidates.warnings) warning(warning2);
-  const result = await watchAll(api, candidates.repos, settings.dryRun);
-  for (const name of result.watched) {
-    info(`${settings.dryRun ? "Would watch" : "Watching"} ${name}`);
-  }
-  for (const { fullName, reason } of result.failed) warning(`${fullName}: ${reason}`);
-  const repository = process.env.GITHUB_REPOSITORY;
-  const workflowRef = process.env.GITHUB_WORKFLOW_REF;
-  if (repository && workflowRef && !settings.dryRun) {
-    const warning2 = await keepAlive(api, repository, workflowFileOf(workflowRef));
-    if (warning2) {
-      warning(warning2);
-      candidates.warnings.push(warning2);
-    }
-  }
-  setOutput("watched", result.watched.length);
-  setOutput("watched-repos", JSON.stringify(result.watched));
-  await summary.addRaw(renderSummary(result, candidates, settings.dryRun)).write();
-  if (runFailed(result)) setFailed("Every watch attempt failed. See the warnings above.");
+  const outcome = await runAutoWatch(
+    api,
+    settings,
+    {
+      repository: process.env.GITHUB_REPOSITORY,
+      workflowRef: process.env.GITHUB_WORKFLOW_REF
+    },
+    /* @__PURE__ */ new Date()
+  );
+  for (const line of outcome.log) info(line);
+  for (const warning2 of outcome.warnings) warning(warning2);
+  setOutput("watched", outcome.watched.length);
+  setOutput("watched-repos", JSON.stringify(outcome.watched));
+  await summary.addRaw(outcome.summary).write();
+  if (outcome.failure) setFailed(outcome.failure);
 };
-run().catch((error2) => setFailed(error2.message));
+main().catch((error2) => setFailed(error2.message));
 /*! Bundled license information:
 
 undici/lib/web/fetch/body.js:

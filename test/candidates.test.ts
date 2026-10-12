@@ -106,4 +106,16 @@ describe('collectCandidates', () => {
         expect(names(result.repos)).toEqual(['me/a'])
         expect(result.warnings[0]).toContain('read:org')
     })
+
+    it('keeps the other orgs when one org fails, and names the one that did', async () => {
+        const api = new FakeApi()
+        api.orgs = { acme: [repo('acme/api')], sso: [repo('sso/app')] }
+        api.failOrgRepos.add('sso')
+
+        const result = await collectCandidates(api, settings(), NOW)
+        expect(names(result.repos)).toEqual(['acme/api'])
+        expect(result.warnings).toHaveLength(1)
+        expect(result.warnings[0]).toContain('sso')
+        expect(result.warnings[0]).not.toContain('read:org')
+    })
 })

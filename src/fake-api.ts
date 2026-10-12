@@ -10,6 +10,7 @@ export class FakeApi implements GitHubApi {
     enabled: string[] = []
     failWatch = new Set<string>()
     failOrgs = false
+    failOrgRepos = new Set<string>()
     failEnable = false
 
     async identity() {
@@ -26,6 +27,8 @@ export class FakeApi implements GitHubApi {
     }
 
     async orgRepos(org: string) {
+        if (this.failOrgRepos.has(org))
+            throw new Error('Resource protected by organization SAML enforcement')
         return this.orgs[org] ?? []
     }
 

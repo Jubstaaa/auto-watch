@@ -23,16 +23,24 @@ export const isRecent = (createdAt: string, sinceHours: number, now: Date): bool
     now.getTime() - new Date(createdAt).getTime() <= sinceHours * HOUR
 
 const orgReposOf = async (api: GitHubApi, warnings: string[]): Promise<Repo[]> => {
+    let orgs: string[]
     try {
-        const orgs = await api.adminOrgs()
-        const lists = await Promise.all(orgs.map((org) => api.orgRepos(org)))
-        return lists.flat()
+        orgs = await api.adminOrgs()
     } catch (error) {
         warnings.push(
             `Skipped organization repos: ${(error as Error).message}. Add the read:org scope to cover them.`
         )
         return []
     }
+
+    const lists = await Promise.allSettled(orgs.map((org) => api.orgRepos(org)))
+    return lists.flatMap((list, index) => {
+        if (list.status === 'fulfilled') return list.value
+        warnings.push(
+            `Skipped ${orgs[index]}: ${(list.reason as Error).message}. If the org uses SAML SSO, authorize the token for it.`
+        )
+        return []
+    })
 }
 
 export const collectCandidates = async (
