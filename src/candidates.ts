@@ -1,3 +1,5 @@
+import picomatch from 'picomatch'
+
 import type { GitHubApi } from './api'
 import type { Repo } from './api.types'
 import type { Settings } from './inputs.types'
@@ -9,15 +11,6 @@ export interface Candidates {
 }
 
 const HOUR = 60 * 60 * 1000
-
-export const matchesPattern = (fullName: string, pattern: string): boolean => {
-    const escaped = pattern
-        .toLowerCase()
-        .split('*')
-        .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-        .join('.*')
-    return new RegExp(`^${escaped}$`).test(fullName.toLowerCase())
-}
 
 export const isRecent = (createdAt: string, sinceHours: number, now: Date): boolean =>
     now.getTime() - new Date(createdAt).getTime() <= sinceHours * HOUR
@@ -58,11 +51,12 @@ export const collectCandidates = async (
         if (!unique.has(key)) unique.set(key, repo)
     }
 
+    const isExcluded = picomatch(settings.exclude, { nocase: true })
     let excluded = 0
     const repos = [...unique.values()].filter((repo) => {
         if (repo.fork || repo.archived) return false
         if (!settings.backfill && !isRecent(repo.createdAt, settings.sinceHours, now)) return false
-        if (settings.exclude.some((pattern) => matchesPattern(repo.fullName, pattern))) {
+        if (isExcluded(repo.fullName)) {
             excluded += 1
             return false
         }

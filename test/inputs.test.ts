@@ -1,12 +1,28 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { parseInputs } from '../src/inputs'
 
-const reader = (values: Record<string, string>) => (name: string) => values[name] ?? ''
+const DEFAULTS = {
+    token: 't',
+    backfill: 'false',
+    'since-hours': '24',
+    'include-orgs': 'true',
+    exclude: '',
+    'dry-run': 'false',
+}
+
+const withInputs = (values: Record<string, string>) => {
+    for (const [name, value] of Object.entries({ ...DEFAULTS, ...values })) {
+        vi.stubEnv(`INPUT_${name.toUpperCase()}`, value)
+    }
+}
+
+afterEach(() => vi.unstubAllEnvs())
 
 describe('parseInputs', () => {
     it('applies the defaults', () => {
-        expect(parseInputs(reader({ token: 't' }))).toEqual({
+        withInputs({})
+        expect(parseInputs()).toEqual({
             token: 't',
             backfill: false,
             sinceHours: 24,
@@ -17,24 +33,22 @@ describe('parseInputs', () => {
     })
 
     it('reads booleans the way Actions writes them', () => {
-        const settings = parseInputs(
-            reader({ token: 't', backfill: 'true', 'include-orgs': 'False', 'dry-run': 'TRUE' })
-        )
-        expect(settings).toMatchObject({ backfill: true, includeOrgs: false, dryRun: true })
+        withInputs({ backfill: 'true', 'include-orgs': 'False', 'dry-run': 'TRUE' })
+        expect(parseInputs()).toMatchObject({ backfill: true, includeOrgs: false, dryRun: true })
     })
 
     it('splits exclude on commas and newlines and drops blanks', () => {
-        const settings = parseInputs(reader({ token: 't', exclude: ' a/b ,\n\nMy-Org/* \n, ' }))
-        expect(settings.exclude).toEqual(['a/b', 'my-org/*'])
+        withInputs({ exclude: ' a/b ,\n\nMy-Org/* \n, ' })
+        expect(parseInputs().exclude).toEqual(['a/b', 'My-Org/*'])
     })
 
     it('requires a token', () => {
-        expect(() => parseInputs(reader({}))).toThrow('token')
+        withInputs({ token: '' })
+        expect(() => parseInputs()).toThrow('token')
     })
 
     it.each(['abc', '0', '-3'])('rejects since-hours %s', (value) => {
-        expect(() => parseInputs(reader({ token: 't', 'since-hours': value }))).toThrow(
-            'since-hours must be a positive number'
-        )
+        withInputs({ 'since-hours': value })
+        expect(() => parseInputs()).toThrow('since-hours must be a positive number')
     })
 })

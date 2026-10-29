@@ -1,5 +1,16 @@
+import type { summary as coreSummary } from '@actions/core'
+
 import type { Candidates } from './candidates'
 import type { WatchResult } from './watch'
+
+type Summary = typeof coreSummary
+
+export interface Report {
+    result: WatchResult
+    candidates: Candidates
+    privateNames: Set<string>
+    dryRun: boolean
+}
 
 const plural = (count: number, noun = 'repo') => `${count} ${noun}${count === 1 ? '' : 's'}`
 
@@ -15,41 +26,40 @@ export const hidePrivate = (names: string[], privateNames: Set<string>) => {
 export const repoLabel = (fullName: string, privateNames: Set<string>) =>
     privateNames.has(fullName) ? 'A private repo' : fullName
 
+const addSection = (summary: Summary, heading: string, items: string[]) => {
+    if (items.length) summary.addHeading(heading, 3).addList(items)
+}
+
 export const renderSummary = (
-    result: WatchResult,
-    candidates: Candidates,
-    privateNames: Set<string>,
-    dryRun: boolean
-): string => {
-    const headline = dryRun
-        ? `Dry run: would watch ${plural(result.watched.length)}`
-        : `Watched ${plural(result.watched.length)}`
+    summary: Summary,
+    { result, candidates, privateNames, dryRun }: Report
+): Summary => {
     const { shown, hidden } = hidePrivate(result.watched, privateNames)
+    const count = plural(result.watched.length)
 
-    const lines = [
-        `## ${headline}`,
-        '',
-        ...shown.map((name) => `- \`${name}\``),
-        ...(hidden ? [`- ${hidden}`] : []),
-        '',
-        '| | Repos |',
-        '|---|---|',
-        `| Already watching | ${result.alreadyWatching.length} |`,
-        `| Ignored by you | ${result.ignored.length} |`,
-        `| Excluded | ${candidates.excluded} |`,
-        `| Failed | ${result.failed.length} |`,
-    ]
-
-    if (result.failed.length) {
-        lines.push(
-            '',
-            '### Failed',
-            ...result.failed.map((f) => `- ${repoLabel(f.fullName, privateNames)}: ${f.reason}`)
-        )
+    summary.addHeading(dryRun ? `Dry run: would watch ${count}` : `Watched ${count}`, 2)
+    if (result.watched.length) {
+        summary.addList([
+            ...shown.map((name) => `<code>${name}</code>`),
+            ...(hidden ? [hidden] : []),
+        ])
     }
-    if (candidates.warnings.length) {
-        lines.push('', '### Warnings', ...candidates.warnings.map((w) => `- ${w}`))
-    }
+    summary.addTable([
+        [
+            { data: '', header: true },
+            { data: 'Repos', header: true },
+        ],
+        ['Already watching', String(result.alreadyWatching.length)],
+        ['Ignored by you', String(result.ignored.length)],
+        ['Excluded', String(candidates.excluded)],
+        ['Failed', String(result.failed.length)],
+    ])
+    addSection(
+        summary,
+        'Failed',
+        result.failed.map((f) => `${repoLabel(f.fullName, privateNames)}: ${f.reason}`)
+    )
+    addSection(summary, 'Warnings', candidates.warnings)
 
-    return lines.join('\n')
+    return summary
 }

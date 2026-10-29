@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { FakeApi } from '../src/fake-api'
+import { FakeApi } from './fake-api'
 import { watchAll } from '../src/watch'
 
 import type { Repo } from '../src/api.types'

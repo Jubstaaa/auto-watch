@@ -1,5 +1,5 @@
-import type { GitHubApi } from './api'
-import type { Identity, Repo, Subscription } from './api.types'
+import type { GitHubApi } from '../src/api'
+import type { Identity, Repo, Subscription } from '../src/api.types'
 
 export class FakeApi implements GitHubApi {
     identityValue: Identity = { login: 'me', scopes: ['notifications', 'read:org'] }

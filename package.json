@@ -13,10 +13,12 @@
     "dependencies": {
         "@actions/core": "^3.0.1",
         "@octokit/plugin-throttling": "^11.0.5",
-        "@octokit/rest": "^22.0.1"
+        "@octokit/rest": "^22.0.1",
+        "picomatch": "^4.0.7"
     },
     "devDependencies": {
         "@types/node": "^26.6.5",
+        "@types/picomatch": "^4.0.3",
         "esbuild": "^0.28.2",
         "prettier": "^3.9.10",
         "typescript": "^7.0.2",

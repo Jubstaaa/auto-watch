@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { FakeApi } from '../src/fake-api'
+import { FakeApi } from './fake-api'
 import { keepAlive, workflowFileOf } from '../src/keepalive'
 
 describe('keepAlive', () => {
