@@ -8,7 +8,7 @@ This Action puts it back. It runs once an hour in your own repo's Actions, watch
 
 ## Setup
 
-**1. Add the workflow** to any repo of yours. Your profile repo (`you/you`) is a good home. Save it as `.github/workflows/auto-watch.yml`:
+**1. Add the workflow** to any repo of yours. Your profile repo (`you/you`) is a good home. Private repos are only counted in its logs, never named. Save it as `.github/workflows/auto-watch.yml`:
 
 ```yaml
 name: auto-watch
