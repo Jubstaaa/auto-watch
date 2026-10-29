@@ -1,7 +1,9 @@
+import { basename } from 'node:path'
+
 import type { GitHubApi } from './api'
 
 export const workflowFileOf = (workflowRef: string): string =>
-    workflowRef.split('@')[0]?.split('/').pop() ?? workflowRef
+    basename(workflowRef.replace(/@.*$/, ''))
 
 export const keepAlive = async (
     api: GitHubApi,

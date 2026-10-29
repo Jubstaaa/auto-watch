@@ -1,11 +1,12 @@
 import { collectCandidates } from './candidates'
 import { keepAlive, workflowFileOf } from './keepalive'
-import { hidePrivate, renderSummary, repoLabel, runFailed } from './summary'
+import { hidePrivate, repoLabel, runFailed } from './summary'
 import { checkToken } from './token'
 import { watchAll } from './watch'
 
 import type { GitHubApi } from './api'
 import type { Settings } from './inputs.types'
+import type { Report } from './summary'
 
 export interface RunEnv {
     repository?: string
@@ -16,7 +17,7 @@ export interface RunOutcome {
     watched: string[]
     log: string[]
     warnings: string[]
-    summary: string
+    report: Report | null
     failure: string | null
 }
 
@@ -37,7 +38,7 @@ export const runAutoWatch = async (
         checkToken(await api.identity())
     } catch (error) {
         const failure = (error as Error).message
-        return { watched: [], log: [], warnings, summary: `## ${failure}`, failure }
+        return { watched: [], log: [], warnings, report: null, failure }
     }
 
     const candidates = await collectCandidates(api, settings, now)
@@ -59,7 +60,7 @@ export const runAutoWatch = async (
                 ({ fullName, reason }) => `${repoLabel(fullName, privateNames)}: ${reason}`
             ),
         ],
-        summary: renderSummary(result, candidates, privateNames, settings.dryRun),
+        report: { result, candidates, privateNames, dryRun: settings.dryRun },
         failure: runFailed(result) ? 'Every watch attempt failed. See the warnings above.' : null,
     }
 }

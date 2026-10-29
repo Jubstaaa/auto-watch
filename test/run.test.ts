@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { FakeApi } from '../src/fake-api'
+import { FakeApi } from './fake-api'
 import { runAutoWatch } from '../src/run'
 
 import type { Settings } from '../src/inputs.types'
@@ -58,7 +58,7 @@ describe('runAutoWatch', () => {
 
         expect(api.watched).toEqual(['me/secret'])
         expect(outcome.log).toEqual(['Watching 1 private repo'])
-        expect(outcome.summary).not.toContain('secret')
+        expect(outcome.report?.privateNames).toEqual(new Set(['me/secret']))
     })
 
     it('still keeps the schedule alive when the token is wrong', async () => {

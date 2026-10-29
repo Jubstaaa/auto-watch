@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { collectCandidates, isRecent, matchesPattern } from '../src/candidates'
-import { FakeApi } from '../src/fake-api'
+import { collectCandidates, isRecent } from '../src/candidates'
+import { FakeApi } from './fake-api'
 
 import type { Repo } from '../src/api.types'
 import type { Settings } from '../src/inputs.types'
@@ -28,18 +28,6 @@ const settings = (extra: Partial<Settings> = {}): Settings => ({
 })
 
 const names = (repos: Repo[]) => repos.map((r) => r.fullName)
-
-describe('matchesPattern', () => {
-    it.each([
-        ['me/app', 'me/app', true],
-        ['My-Org/x', 'my-org/*', true],
-        ['me/scratch-1', '*/scratch-*', true],
-        ['me/app', 'me/ap', false],
-        ['me/app2', 'me/app', false],
-    ])('%s against %s is %s', (name, pattern, expected) => {
-        expect(matchesPattern(name, pattern)).toBe(expected)
-    })
-})
 
 describe('isRecent', () => {
     it('keeps repos inside the window and drops older ones', () => {
@@ -80,15 +68,15 @@ describe('collectCandidates', () => {
 
     it('counts excluded repos and skips them', async () => {
         const api = new FakeApi()
-        api.repos = [repo('me/a'), repo('me/scratch-1')]
+        api.repos = [repo('me/a'), repo('me/app2'), repo('me/Scratch-1')]
         api.orgs = { acme: [repo('acme/api')] }
 
         const result = await collectCandidates(
             api,
-            settings({ exclude: ['*/scratch-*', 'acme/*'] }),
+            settings({ exclude: ['*/scratch-*', 'ACME/*', 'me/app'] }),
             NOW
         )
-        expect(names(result.repos)).toEqual(['me/a'])
+        expect(names(result.repos)).toEqual(['me/a', 'me/app2'])
         expect(result.excluded).toBe(2)
     })
 
