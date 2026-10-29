@@ -11,6 +11,7 @@ const NOW = new Date('2026-10-12T12:00:00Z')
 const repo = (fullName: string, extra: Partial<Repo> = {}): Repo => ({
     fullName,
     fork: false,
+    private: false,
     archived: false,
     createdAt: '2026-10-12T10:00:00Z',
     ...extra,

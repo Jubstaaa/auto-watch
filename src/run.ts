@@ -1,6 +1,6 @@
 import { collectCandidates } from './candidates'
 import { keepAlive, workflowFileOf } from './keepalive'
-import { renderSummary, runFailed } from './summary'
+import { hidePrivate, renderSummary, repoLabel, runFailed } from './summary'
 import { checkToken } from './token'
 import { watchAll } from './watch'
 
@@ -45,15 +45,21 @@ export const runAutoWatch = async (
 
     const result = await watchAll(api, candidates.repos, settings.dryRun)
     const verb = settings.dryRun ? 'Would watch' : 'Watching'
+    const privateNames = new Set(
+        candidates.repos.filter((repo) => repo.private).map((repo) => repo.fullName)
+    )
+    const { shown, hidden } = hidePrivate(result.watched, privateNames)
 
     return {
         watched: result.watched,
-        log: result.watched.map((name) => `${verb} ${name}`),
+        log: [...shown, ...(hidden ? [hidden] : [])].map((name) => `${verb} ${name}`),
         warnings: [
             ...candidates.warnings,
-            ...result.failed.map(({ fullName, reason }) => `${fullName}: ${reason}`),
+            ...result.failed.map(
+                ({ fullName, reason }) => `${repoLabel(fullName, privateNames)}: ${reason}`
+            ),
         ],
-        summary: renderSummary(result, candidates, settings.dryRun),
+        summary: renderSummary(result, candidates, privateNames, settings.dryRun),
         failure: runFailed(result) ? 'Every watch attempt failed. See the warnings above.' : null,
     }
 }

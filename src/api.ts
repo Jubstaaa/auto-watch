@@ -28,11 +28,13 @@ const client = (token: string) =>
 const toRepo = (repo: {
     full_name: string
     fork: boolean
+    private: boolean
     archived?: boolean
     created_at?: string | null
 }): Repo => ({
     fullName: repo.full_name,
     fork: repo.fork,
+    private: repo.private,
     archived: repo.archived ?? false,
     createdAt: repo.created_at ?? new Date(0).toISOString(),
 })

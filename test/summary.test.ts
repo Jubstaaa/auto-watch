@@ -17,6 +17,7 @@ describe('renderSummary', () => {
         const text = renderSummary(
             result({ watched: ['me/a'], alreadyWatching: ['me/b'], ignored: ['me/c'] }),
             { repos: [], excluded: 2, warnings: ['Skipped organization repos'] },
+            new Set(),
             false
         )
         expect(text).toContain('Watched 1 repo')
@@ -31,9 +32,26 @@ describe('renderSummary', () => {
         const text = renderSummary(
             result({ watched: ['me/a'] }),
             { repos: [], excluded: 0, warnings: [] },
+            new Set(),
             true
         )
         expect(text).toContain('Dry run: would watch 1 repo')
+    })
+
+    it('counts private repos without naming them', () => {
+        const text = renderSummary(
+            result({
+                watched: ['me/public', 'me/secret', 'me/hidden'],
+                failed: [{ fullName: 'me/broken', reason: 'Not Found' }],
+            }),
+            { repos: [], excluded: 0, warnings: [] },
+            new Set(['me/secret', 'me/hidden', 'me/broken']),
+            false
+        )
+        expect(text).toContain('`me/public`')
+        expect(text).toContain('- 2 private repos')
+        expect(text).toContain('- A private repo: Not Found')
+        expect(text).not.toMatch(/secret|hidden|broken/)
     })
 })
 

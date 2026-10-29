@@ -60,6 +60,10 @@ Then open the Actions tab, pick **auto-watch**, click **Run workflow** and tick 
 
 Outputs: `watched` (a count) and `watched-repos` (a JSON array).
 
+Private repos are only counted in the log and the run summary, never named, because anyone can read the Actions logs of a public repo. `watched-repos` does contain their names, so don't print it in a public repo.
+
+Private repos are only counted in the log and the run summary, never named, because anyone can read the Actions logs of a public repo. `watched-repos` does contain their names, so don't print it in a public repo.
+
 Forks and archived repos are always skipped. So is any repo you set to **Ignore**.
 
 ## Questions
