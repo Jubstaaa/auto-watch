@@ -8,6 +8,7 @@ import type { Repo } from '../src/api.types'
 const repo = (fullName: string): Repo => ({
     fullName,
     fork: false,
+    private: false,
     archived: false,
     createdAt: '2026-10-12T10:00:00Z',
 })

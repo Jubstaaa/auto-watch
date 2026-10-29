@@ -1,6 +1,7 @@
 export interface Repo {
     fullName: string
     fork: boolean
+    private: boolean
     archived: boolean
     createdAt: string
 }

@@ -25172,6 +25172,7 @@ var client = (token) => new Throttled({
 var toRepo = (repo) => ({
   fullName: repo.full_name,
   fork: repo.fork,
+  private: repo.private,
   archived: repo.archived ?? false,
   createdAt: repo.created_at ?? (/* @__PURE__ */ new Date(0)).toISOString()
 });
@@ -25314,14 +25315,22 @@ var keepAlive = async (api, fullName, workflowRef) => {
 };
 
 // src/summary.ts
-var plural = (count) => `${count} repo${count === 1 ? "" : "s"}`;
+var plural = (count, noun = "repo") => `${count} ${noun}${count === 1 ? "" : "s"}`;
 var runFailed = (result) => result.failed.length > 0 && result.watched.length === 0;
-var renderSummary = (result, candidates, dryRun) => {
+var hidePrivate = (names, privateNames) => {
+  const shown = names.filter((name) => !privateNames.has(name));
+  const hidden = names.length - shown.length;
+  return { shown, hidden: hidden ? plural(hidden, "private repo") : null };
+};
+var repoLabel = (fullName, privateNames) => privateNames.has(fullName) ? "A private repo" : fullName;
+var renderSummary = (result, candidates, privateNames, dryRun) => {
   const headline = dryRun ? `Dry run: would watch ${plural(result.watched.length)}` : `Watched ${plural(result.watched.length)}`;
+  const { shown, hidden } = hidePrivate(result.watched, privateNames);
   const lines = [
     `## ${headline}`,
     "",
-    ...result.watched.map((name) => `- \`${name}\``),
+    ...shown.map((name) => `- \`${name}\``),
+    ...hidden ? [`- ${hidden}`] : [],
     "",
     "| | Repos |",
     "|---|---|",
@@ -25334,7 +25343,7 @@ var renderSummary = (result, candidates, dryRun) => {
     lines.push(
       "",
       "### Failed",
-      ...result.failed.map((f) => `- \`${f.fullName}\`: ${f.reason}`)
+      ...result.failed.map((f) => `- ${repoLabel(f.fullName, privateNames)}: ${f.reason}`)
     );
   }
   if (candidates.warnings.length) {
@@ -25400,14 +25409,20 @@ var runAutoWatch = async (api, settings, env, now) => {
   candidates.warnings.push(...warnings);
   const result = await watchAll(api, candidates.repos, settings.dryRun);
   const verb = settings.dryRun ? "Would watch" : "Watching";
+  const privateNames = new Set(
+    candidates.repos.filter((repo) => repo.private).map((repo) => repo.fullName)
+  );
+  const { shown, hidden } = hidePrivate(result.watched, privateNames);
   return {
     watched: result.watched,
-    log: result.watched.map((name) => `${verb} ${name}`),
+    log: [...shown, ...hidden ? [hidden] : []].map((name) => `${verb} ${name}`),
     warnings: [
       ...candidates.warnings,
-      ...result.failed.map(({ fullName, reason }) => `${fullName}: ${reason}`)
+      ...result.failed.map(
+        ({ fullName, reason }) => `${repoLabel(fullName, privateNames)}: ${reason}`
+      )
     ],
-    summary: renderSummary(result, candidates, settings.dryRun),
+    summary: renderSummary(result, candidates, privateNames, settings.dryRun),
     failure: runFailed(result) ? "Every watch attempt failed. See the warnings above." : null
   };
 };
