@@ -18,6 +18,7 @@ const settings = (extra: Partial<Settings> = {}): Settings => ({
     includeOrgs: true,
     exclude: [],
     dryRun: false,
+    workflowToken: 'job',
     ...extra,
 })
 
@@ -76,5 +77,17 @@ describe('runAutoWatch', () => {
         const api = new FakeApi()
         await runAutoWatch(api, settings({ dryRun: true }), ENV, NOW)
         expect(api.enabled).toEqual([])
+    })
+
+    it('fails the run but keeps its warnings when the repos cannot be listed', async () => {
+        const api = new FakeApi()
+        api.failEnable = true
+        api.ownedRepos = () => Promise.reject(new Error('Server Error'))
+
+        const outcome = await runAutoWatch(api, settings(), ENV, NOW)
+
+        expect(outcome.failure).toBe('Could not list your repos: Server Error')
+        expect(outcome.watched).toEqual([])
+        expect(outcome.warnings).toEqual([expect.stringContaining('actions: write')])
     })
 })

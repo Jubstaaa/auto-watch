@@ -12421,21 +12421,21 @@ var require_response = __commonJS({
         return responseObject;
       }
       // Creates a redirect Response that redirects to url with status status.
-      static redirect(url, status2 = 302) {
+      static redirect(url, status = 302) {
         webidl.argumentLengthCheck(arguments, 1, "Response.redirect");
         url = webidl.converters.USVString(url);
-        status2 = webidl.converters["unsigned short"](status2);
+        status = webidl.converters["unsigned short"](status);
         let parsedURL;
         try {
           parsedURL = new URL(url, relevantRealm.settingsObject.baseUrl);
         } catch (err) {
           throw new TypeError(`Failed to parse URL from ${url}`, { cause: err });
         }
-        if (!redirectStatusSet.has(status2)) {
-          throw new RangeError(`Invalid status code ${status2}`);
+        if (!redirectStatusSet.has(status)) {
+          throw new RangeError(`Invalid status code ${status}`);
         }
         const responseObject = fromInnerResponse(makeResponse({}), "immutable");
-        responseObject[kState].status = status2;
+        responseObject[kState].status = status;
         const value = isomorphicEncode(URLSerializer(parsedURL));
         responseObject[kState].headersList.append("location", value, true);
         return responseObject;
@@ -14327,13 +14327,13 @@ var require_fetch = __commonJS({
         })();
       }
       try {
-        const { body, status: status2, statusText, headersList, socket } = await dispatch({ body: requestBody });
+        const { body, status, statusText, headersList, socket } = await dispatch({ body: requestBody });
         if (socket) {
-          response = makeResponse({ status: status2, statusText, headersList, socket });
+          response = makeResponse({ status, statusText, headersList, socket });
         } else {
           const iterator2 = body[Symbol.asyncIterator]();
           fetchParams.controller.next = () => iterator2.next();
-          response = makeResponse({ status: status2, statusText, headersList });
+          response = makeResponse({ status, statusText, headersList });
         }
       } catch (err) {
         if (err.name === "AbortError") {
@@ -14457,8 +14457,8 @@ var require_fetch = __commonJS({
             onResponseStarted() {
               timingInfo.finalNetworkResponseStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability);
             },
-            onHeaders(status2, rawHeaders, resume, statusText) {
-              if (status2 < 200) {
+            onHeaders(status, rawHeaders, resume, statusText) {
+              if (status < 200) {
                 return;
               }
               let location = "";
@@ -14468,8 +14468,8 @@ var require_fetch = __commonJS({
               }
               location = headersList.get("location", true);
               const decoders = [];
-              const willFollow = location && request2.redirect === "follow" && redirectStatusSet.has(status2);
-              if (request2.method !== "HEAD" && request2.method !== "CONNECT" && !nullBodyStatus.includes(status2) && !willFollow) {
+              const willFollow = location && request2.redirect === "follow" && redirectStatusSet.has(status);
+              if (request2.method !== "HEAD" && request2.method !== "CONNECT" && !nullBodyStatus.includes(status) && !willFollow) {
                 const contentEncoding = headersList.get("content-encoding", true);
                 const codings = contentEncoding ? contentEncoding.toLowerCase().split(",") : [];
                 const maxContentEncodings = 5;
@@ -14507,7 +14507,7 @@ var require_fetch = __commonJS({
               this.body = new Readable({ read: resume });
               const onError = this.onError.bind(this);
               resolve({
-                status: status2,
+                status,
                 statusText,
                 headersList,
                 body: decoders.length ? pipeline(this.body, ...decoders, (err) => {
@@ -14541,8 +14541,8 @@ var require_fetch = __commonJS({
               fetchParams.controller.terminate(error2);
               reject(error2);
             },
-            onUpgrade(status2, rawHeaders, socket) {
-              if (status2 !== 101) {
+            onUpgrade(status, rawHeaders, socket) {
+              if (status !== 101) {
                 return;
               }
               const headersList = new HeadersList();
@@ -14550,8 +14550,8 @@ var require_fetch = __commonJS({
                 headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString("latin1"), true);
               }
               resolve({
-                status: status2,
-                statusText: STATUS_CODES[status2],
+                status,
+                statusText: STATUS_CODES[status],
                 headersList,
                 socket
               });
@@ -19287,12 +19287,12 @@ var require_light = __commonJS({
             }
           };
         }
-        _addListener(name, status2, cb) {
+        _addListener(name, status, cb) {
           var base;
           if ((base = this._events)[name] == null) {
             base[name] = [];
           }
-          this._events[name].push({ cb, status: status2 });
+          this._events[name].push({ cb, status });
           return this.instance;
         }
         listenerCount(name) {
@@ -19465,10 +19465,10 @@ var require_light = __commonJS({
           }
         }
         _assertStatus(expected) {
-          var status2;
-          status2 = this._states.jobStatus(this.options.id);
-          if (!(status2 === expected || expected === "DONE" && status2 === null)) {
-            throw new BottleneckError$1(`Invalid job status ${status2}, expected ${expected}. Please open an issue at https://github.com/SGrondin/bottleneck/issues`);
+          var status;
+          status = this._states.jobStatus(this.options.id);
+          if (!(status === expected || expected === "DONE" && status === null)) {
+            throw new BottleneckError$1(`Invalid job status ${status}, expected ${expected}. Please open an issue at https://github.com/SGrondin/bottleneck/issues`);
           }
         }
         doReceive() {
@@ -19772,10 +19772,10 @@ var require_light = __commonJS({
           var ref;
           return (ref = this.status[this._jobs[id]]) != null ? ref : null;
         }
-        statusJobs(status2) {
+        statusJobs(status) {
           var k, pos, ref, results, v;
-          if (status2 != null) {
-            pos = this.status.indexOf(status2);
+          if (status != null) {
+            pos = this.status.indexOf(status);
             if (pos < 0) {
               throw new BottleneckError$3(`status must be one of ${this.status.join(", ")}`);
             }
@@ -20133,8 +20133,8 @@ var require_light = __commonJS({
           jobStatus(id) {
             return this._states.jobStatus(id);
           }
-          jobs(status2) {
-            return this._states.statusJobs(status2);
+          jobs(status) {
+            return this._states.statusJobs(status);
           }
           counts() {
             return this._states.statusCounts();
@@ -22708,6 +22708,9 @@ var ExitCode;
   ExitCode2[ExitCode2["Success"] = 0] = "Success";
   ExitCode2[ExitCode2["Failure"] = 1] = "Failure";
 })(ExitCode || (ExitCode = {}));
+function setSecret(secret) {
+  issueCommand("add-mask", {}, secret);
+}
 function getInput(name, options) {
   const val = process.env[`INPUT_${name.replace(/ /g, "_").toUpperCase()}`] || "";
   if (options && options.required && !val) {
@@ -22987,6 +22990,45 @@ function throttling(octokit, octokitOptions) {
 }
 throttling.VERSION = VERSION;
 throttling.triggersNotification = triggersNotification;
+
+// node_modules/@octokit/request-error/dist-src/index.js
+var RequestError = class extends Error {
+  name;
+  /**
+   * http status code
+   */
+  status;
+  /**
+   * Request options that lead to the error.
+   */
+  request;
+  /**
+   * Response object if a response was received
+   */
+  response;
+  constructor(message, statusCode, options) {
+    super(message, { cause: options.cause });
+    this.name = "HttpError";
+    this.status = Number.parseInt(statusCode);
+    if (Number.isNaN(this.status)) {
+      this.status = 0;
+    }
+    if ("response" in options) {
+      this.response = options.response;
+    }
+    const requestCopy = Object.assign({}, options.request);
+    if (options.request.headers.authorization) {
+      requestCopy.headers = Object.assign({}, options.request.headers, {
+        authorization: options.request.headers.authorization.replace(
+          /(?<! ) .*$/,
+          " [REDACTED]"
+        )
+      });
+    }
+    requestCopy.url = requestCopy.url.replace(/\bclient_secret=\w+/g, "client_secret=[REDACTED]").replace(/\baccess_token=\w+/g, "access_token=[REDACTED]");
+    this.request = requestCopy;
+  }
+};
 
 // node_modules/universal-user-agent/index.js
 function getUserAgent() {
@@ -23937,45 +23979,6 @@ var JSONParse = (text, reviver) => {
   }
 };
 
-// node_modules/@octokit/request-error/dist-src/index.js
-var RequestError = class extends Error {
-  name;
-  /**
-   * http status code
-   */
-  status;
-  /**
-   * Request options that lead to the error.
-   */
-  request;
-  /**
-   * Response object if a response was received
-   */
-  response;
-  constructor(message, statusCode, options) {
-    super(message, { cause: options.cause });
-    this.name = "HttpError";
-    this.status = Number.parseInt(statusCode);
-    if (Number.isNaN(this.status)) {
-      this.status = 0;
-    }
-    if ("response" in options) {
-      this.response = options.response;
-    }
-    const requestCopy = Object.assign({}, options.request);
-    if (options.request.headers.authorization) {
-      requestCopy.headers = Object.assign({}, options.request.headers, {
-        authorization: options.request.headers.authorization.replace(
-          /(?<! ) .*$/,
-          " [REDACTED]"
-        )
-      });
-    }
-    requestCopy.url = requestCopy.url.replace(/\bclient_secret=\w+/g, "client_secret=[REDACTED]").replace(/\baccess_token=\w+/g, "access_token=[REDACTED]");
-    this.request = requestCopy;
-  }
-};
-
 // node_modules/@octokit/request/dist-bundle/index.js
 var VERSION3 = "10.0.16";
 var defaults_default = {
@@ -24042,7 +24045,7 @@ async function fetchWrapper(requestOptions) {
     requestError.cause = error2;
     throw requestError;
   }
-  const status2 = fetchResponse.status;
+  const status = fetchResponse.status;
   const url = fetchResponse.url;
   const responseHeaders = {};
   for (const [key, value] of fetchResponse.headers) {
@@ -24050,7 +24053,7 @@ async function fetchWrapper(requestOptions) {
   }
   const octokitResponse = {
     url,
-    status: status2,
+    status,
     headers: responseHeaders,
     data: ""
   };
@@ -24061,28 +24064,28 @@ async function fetchWrapper(requestOptions) {
       `[@octokit/request] "${requestOptions.method} ${requestOptions.url}" is deprecated. It is scheduled to be removed on ${responseHeaders.sunset}${deprecationLink ? `. See ${deprecationLink}` : ""}`
     );
   }
-  if (status2 === 204 || status2 === 205) {
+  if (status === 204 || status === 205) {
     return octokitResponse;
   }
   if (requestOptions.method === "HEAD") {
-    if (status2 < 400) {
+    if (status < 400) {
       return octokitResponse;
     }
-    throw new RequestError(fetchResponse.statusText, status2, {
+    throw new RequestError(fetchResponse.statusText, status, {
       response: octokitResponse,
       request: requestOptions
     });
   }
-  if (status2 === 304) {
+  if (status === 304) {
     octokitResponse.data = await getResponseData(fetchResponse);
-    throw new RequestError("Not modified", status2, {
+    throw new RequestError("Not modified", status, {
       response: octokitResponse,
       request: requestOptions
     });
   }
-  if (status2 >= 400) {
+  if (status >= 400) {
     octokitResponse.data = await getResponseData(fetchResponse);
-    throw new RequestError(toErrorMessage(octokitResponse.data), status2, {
+    throw new RequestError(toErrorMessage(octokitResponse.data), status, {
       response: octokitResponse,
       request: requestOptions
     });
@@ -27059,7 +27062,6 @@ var split = (fullName) => {
   const [owner = "", repo = ""] = fullName.split("/");
   return { owner, repo };
 };
-var status = (error2) => error2.status;
 var createApi = (token, workflowToken) => {
   const user = client(token);
   const job = client(workflowToken);
@@ -27096,7 +27098,7 @@ var createApi = (token, workflowToken) => {
         if (data.ignored) return "ignored";
         return data.subscribed ? "watching" : "none";
       } catch (error2) {
-        if (status(error2) === 404) return "none";
+        if (error2 instanceof RequestError && error2.status === 404) return "none";
         throw error2;
       }
     },
@@ -27113,10 +27115,16 @@ var createApi = (token, workflowToken) => {
   };
 };
 
+// src/error-message.ts
+var errorMessage = (error2) => error2 instanceof Error ? error2.message : String(error2);
+
 // src/inputs.ts
 var parseInputs = () => {
   const token = getInput("token");
   if (!token) throw new Error("The token input is empty. Add a classic token as a secret.");
+  setSecret(token);
+  const workflowToken = getInput("github-token");
+  if (workflowToken) setSecret(workflowToken);
   const rawHours = getInput("since-hours");
   const sinceHours = Number(rawHours);
   if (!Number.isFinite(sinceHours) || sinceHours <= 0) {
@@ -27128,7 +27136,8 @@ var parseInputs = () => {
     sinceHours,
     includeOrgs: getBooleanInput("include-orgs"),
     exclude: getMultilineInput("exclude").flatMap((line) => line.split(",")).map((pattern) => pattern.trim()).filter(Boolean),
-    dryRun: getBooleanInput("dry-run")
+    dryRun: getBooleanInput("dry-run"),
+    workflowToken
   };
 };
 
@@ -27142,7 +27151,7 @@ var orgReposOf = async (api, warnings) => {
     orgs = await api.adminOrgs();
   } catch (error2) {
     warnings.push(
-      `Skipped organization repos: ${error2.message}. Add the read:org scope to cover them.`
+      `Skipped organization repos: ${errorMessage(error2)}. Add the read:org scope to cover them.`
     );
     return [];
   }
@@ -27150,7 +27159,7 @@ var orgReposOf = async (api, warnings) => {
   return lists.flatMap((list, index) => {
     if (list.status === "fulfilled") return list.value;
     warnings.push(
-      `Skipped ${orgs[index]}: ${list.reason.message}. If the org uses SAML SSO, authorize the token for it.`
+      `Skipped ${orgs[index]}: ${errorMessage(list.reason)}. If the org uses SAML SSO, authorize the token for it.`
     );
     return [];
   });
@@ -27186,7 +27195,7 @@ var keepAlive = async (api, fullName, workflowRef) => {
     await api.enableWorkflow(fullName, workflowRef);
     return null;
   } catch (error2) {
-    return `Could not keep the schedule alive (${error2.message}). Add "permissions: actions: write" to the workflow, or GitHub will pause it after 60 days without commits.`;
+    return `Could not keep the schedule alive (${errorMessage(error2)}). Add "permissions: actions: write" to the workflow, or GitHub will pause it after 60 days without commits.`;
   }
 };
 
@@ -27265,7 +27274,7 @@ var watchAll = async (api, repos, dryRun) => {
       if (!dryRun) await api.watch(fullName);
       result.watched.push(fullName);
     } catch (error2) {
-      result.failed.push({ fullName, reason: error2.message });
+      result.failed.push({ fullName, reason: errorMessage(error2) });
     }
   }
   return result;
@@ -27278,14 +27287,25 @@ var runAutoWatch = async (api, settings, env, now) => {
     const warning2 = await keepAlive(api, env.repository, workflowFileOf(env.workflowRef));
     if (warning2) warnings.push(warning2);
   }
+  const stopped = (failure) => ({
+    watched: [],
+    log: [],
+    warnings,
+    report: null,
+    failure
+  });
   try {
     checkToken(await api.identity());
   } catch (error2) {
-    const failure = error2.message;
-    return { watched: [], log: [], warnings, report: null, failure };
+    return stopped(errorMessage(error2));
   }
-  const candidates = await collectCandidates(api, settings, now);
-  candidates.warnings.push(...warnings);
+  let candidates;
+  try {
+    const listed = await collectCandidates(api, settings, now);
+    candidates = { ...listed, warnings: [...listed.warnings, ...warnings] };
+  } catch (error2) {
+    return stopped(`Could not list your repos: ${errorMessage(error2)}`);
+  }
   const result = await watchAll(api, candidates.repos, settings.dryRun);
   const verb = settings.dryRun ? "Would watch" : "Watching";
   const privateNames = new Set(
@@ -27309,7 +27329,7 @@ var runAutoWatch = async (api, settings, env, now) => {
 // src/main.ts
 var execute = async () => {
   const settings = parseInputs();
-  const api = createApi(settings.token, getInput("github-token"));
+  const api = createApi(settings.token, settings.workflowToken);
   const outcome = await runAutoWatch(
     api,
     settings,
@@ -27332,7 +27352,7 @@ var run = async () => {
   try {
     await execute();
   } catch (error2) {
-    setFailed(error2.message);
+    setFailed(errorMessage(error2));
   }
 };
 
@@ -27346,15 +27366,15 @@ undici/lib/web/fetch/body.js:
 undici/lib/web/websocket/frame.js:
   (*! ws. MIT License. Einar Otto Stangvik <einaros@gmail.com> *)
 
+@octokit/request-error/dist-src/index.js:
+  (* v8 ignore else -- @preserve -- Bug with vitest coverage where it sees an else branch that doesn't exist *)
+
 content-type/dist/index.js:
   (*!
    * content-type
    * Copyright(c) 2015 Douglas Christopher Wilson
    * MIT Licensed
    *)
-
-@octokit/request-error/dist-src/index.js:
-  (* v8 ignore else -- @preserve -- Bug with vitest coverage where it sees an else branch that doesn't exist *)
 
 @octokit/request/dist-bundle/index.js:
   (* v8 ignore next -- @preserve *)

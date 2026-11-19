@@ -1,13 +1,14 @@
 import * as core from '@actions/core'
 
 import { createApi } from './api'
+import { errorMessage } from './error-message'
 import { parseInputs } from './inputs'
 import { runAutoWatch } from './run'
 import { renderSummary } from './summary'
 
 const execute = async () => {
     const settings = parseInputs()
-    const api = createApi(settings.token, core.getInput('github-token'))
+    const api = createApi(settings.token, settings.workflowToken)
 
     const outcome = await runAutoWatch(
         api,
@@ -35,6 +36,6 @@ export const run = async (): Promise<void> => {
     try {
         await execute()
     } catch (error) {
-        core.setFailed((error as Error).message)
+        core.setFailed(errorMessage(error))
     }
 }

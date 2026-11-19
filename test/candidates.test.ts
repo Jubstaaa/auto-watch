@@ -24,6 +24,7 @@ const settings = (extra: Partial<Settings> = {}): Settings => ({
     includeOrgs: true,
     exclude: [],
     dryRun: false,
+    workflowToken: 'job',
     ...extra,
 })
 

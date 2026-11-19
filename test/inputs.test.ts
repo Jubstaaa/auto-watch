@@ -9,6 +9,7 @@ const DEFAULTS = {
     'include-orgs': 'true',
     exclude: '',
     'dry-run': 'false',
+    'github-token': 'job',
 }
 
 const withInputs = (values: Record<string, string>) => {
@@ -17,7 +18,10 @@ const withInputs = (values: Record<string, string>) => {
     }
 }
 
-afterEach(() => vi.unstubAllEnvs())
+afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
+})
 
 describe('parseInputs', () => {
     it('applies the defaults', () => {
@@ -29,6 +33,7 @@ describe('parseInputs', () => {
             includeOrgs: true,
             exclude: [],
             dryRun: false,
+            workflowToken: 'job',
         })
     })
 
@@ -50,5 +55,14 @@ describe('parseInputs', () => {
     it.each(['abc', '0', '-3'])('rejects since-hours %s', (value) => {
         withInputs({ 'since-hours': value })
         expect(() => parseInputs()).toThrow('since-hours must be a positive number')
+    })
+
+    it('masks both tokens in the log', () => {
+        const write = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+        withInputs({ token: 'pat-value', 'github-token': 'job-value' })
+        parseInputs()
+        const log = write.mock.calls.map(([text]) => String(text)).join('')
+        expect(log).toContain('::add-mask::pat-value')
+        expect(log).toContain('::add-mask::job-value')
     })
 })

@@ -1,5 +1,7 @@
 import { basename } from 'node:path'
 
+import { errorMessage } from './error-message'
+
 import type { GitHubApi } from './api'
 
 export const workflowFileOf = (workflowRef: string): string =>
@@ -14,6 +16,6 @@ export const keepAlive = async (
         await api.enableWorkflow(fullName, workflowRef)
         return null
     } catch (error) {
-        return `Could not keep the schedule alive (${(error as Error).message}). Add "permissions: actions: write" to the workflow, or GitHub will pause it after 60 days without commits.`
+        return `Could not keep the schedule alive (${errorMessage(error)}). Add "permissions: actions: write" to the workflow, or GitHub will pause it after 60 days without commits.`
     }
 }

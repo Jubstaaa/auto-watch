@@ -43,4 +43,11 @@ describe('watchAll', () => {
         expect(result.watched).toEqual(['me/good'])
         expect(result.failed).toEqual([{ fullName: 'me/bad', reason: 'cannot watch me/bad' }])
     })
+
+    it('reports something readable when the failure is not an Error', async () => {
+        const api = new FakeApi()
+        api.watch = () => Promise.reject('rate limited')
+        const result = await watchAll(api, [repo('me/a')], false)
+        expect(result.failed).toEqual([{ fullName: 'me/a', reason: 'rate limited' }])
+    })
 })

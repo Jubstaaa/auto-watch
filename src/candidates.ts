@@ -1,5 +1,7 @@
 import picomatch from 'picomatch'
 
+import { errorMessage } from './error-message'
+
 import type { GitHubApi } from './api'
 import type { Repo } from './api.types'
 import type { Settings } from './inputs.types'
@@ -21,7 +23,7 @@ const orgReposOf = async (api: GitHubApi, warnings: string[]): Promise<Repo[]> =
         orgs = await api.adminOrgs()
     } catch (error) {
         warnings.push(
-            `Skipped organization repos: ${(error as Error).message}. Add the read:org scope to cover them.`
+            `Skipped organization repos: ${errorMessage(error)}. Add the read:org scope to cover them.`
         )
         return []
     }
@@ -30,7 +32,7 @@ const orgReposOf = async (api: GitHubApi, warnings: string[]): Promise<Repo[]> =
     return lists.flatMap((list, index) => {
         if (list.status === 'fulfilled') return list.value
         warnings.push(
-            `Skipped ${orgs[index]}: ${(list.reason as Error).message}. If the org uses SAML SSO, authorize the token for it.`
+            `Skipped ${orgs[index]}: ${errorMessage(list.reason)}. If the org uses SAML SSO, authorize the token for it.`
         )
         return []
     })
