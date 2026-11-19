@@ -58,7 +58,7 @@ export const createApi = (token: string, workflowToken: string): GitHubApi => {
                 scopes:
                     header === undefined
                         ? null
-                        : String(header)
+                        : header
                               .split(',')
                               .map((scope) => scope.trim())
                               .filter(Boolean),

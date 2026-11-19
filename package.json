@@ -9,7 +9,9 @@
         "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/index.js --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
         "test": "vitest run",
         "typecheck": "tsc --noEmit",
-        "lint": "prettier --check .",
+        "lint": "eslint .",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
         "audit": "bun audit --audit-level=high"
     },
     "dependencies": {
@@ -20,11 +22,16 @@
         "picomatch": "^4.0.7"
     },
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
         "@types/node": "^26.6.6",
         "@types/picomatch": "^4.0.3",
+        "@typescript/native": "npm:typescript@^7.0.2",
         "esbuild": "^0.28.2",
+        "eslint": "^10.15.0",
+        "eslint-config-prettier": "^10.1.8",
         "prettier": "^3.10.1",
-        "typescript": "^7.0.2",
+        "typescript": "npm:@typescript/typescript6@^6.0.2",
+        "typescript-eslint": "^8.73.0",
         "vitest": "^5.1.0"
     }
 }
