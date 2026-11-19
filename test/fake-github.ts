@@ -7,7 +7,11 @@ export interface Call {
     body: unknown
 }
 
-type Reply = { status: number; body?: unknown; headers?: Record<string, string> }
+interface Reply {
+    status: number
+    body?: unknown
+    headers?: Record<string, string>
+}
 type Route = (call: Call) => Reply | undefined
 
 const json = ({ status, body, headers = {} }: Reply) =>
@@ -21,7 +25,7 @@ const json = ({ status, body, headers = {} }: Reply) =>
 export const fakeGitHub = (routes: Record<string, Route | Reply>) => {
     const calls: Call[] = []
 
-    vi.stubGlobal('fetch', async (input: string | URL | Request, init: RequestInit = {}) => {
+    vi.stubGlobal('fetch', (input: string | URL | Request, init: RequestInit = {}) => {
         const url = new URL(input instanceof Request ? input.url : input)
         const headers = new Headers(init.headers)
         const call: Call = {
@@ -34,7 +38,7 @@ export const fakeGitHub = (routes: Record<string, Route | Reply>) => {
 
         const route = routes[`${call.method} ${call.path}`]
         const reply = typeof route === 'function' ? route(call) : route
-        return json(reply ?? { status: 404, body: { message: 'Not Found' } })
+        return Promise.resolve(json(reply ?? { status: 404, body: { message: 'Not Found' } }))
     })
 
     return calls

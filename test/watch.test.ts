@@ -46,6 +46,7 @@ describe('watchAll', () => {
 
     it('reports something readable when the failure is not an Error', async () => {
         const api = new FakeApi()
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the case under test
         api.watch = () => Promise.reject('rate limited')
         const result = await watchAll(api, [repo('me/a')], false)
         expect(result.failed).toEqual([{ fullName: 'me/a', reason: 'rate limited' }])

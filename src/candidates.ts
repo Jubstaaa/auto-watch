@@ -28,14 +28,19 @@ const orgReposOf = async (api: GitHubApi, warnings: string[]): Promise<Repo[]> =
         return []
     }
 
-    const lists = await Promise.allSettled(orgs.map((org) => api.orgRepos(org)))
-    return lists.flatMap((list, index) => {
-        if (list.status === 'fulfilled') return list.value
-        warnings.push(
-            `Skipped ${orgs[index]}: ${errorMessage(list.reason)}. If the org uses SAML SSO, authorize the token for it.`
-        )
-        return []
-    })
+    const lists = await Promise.all(
+        orgs.map(async (org) => {
+            try {
+                return await api.orgRepos(org)
+            } catch (error) {
+                warnings.push(
+                    `Skipped ${org}: ${errorMessage(error)}. If the org uses SAML SSO, authorize the token for it.`
+                )
+                return []
+            }
+        })
+    )
+    return lists.flat()
 }
 
 export const collectCandidates = async (

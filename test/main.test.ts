@@ -15,10 +15,10 @@ const outputFile = join(dir, 'output')
 const summaryFile = join(dir, 'summary')
 
 // GITHUB_OUTPUT holds heredoc entries: name<<delimiter, value, delimiter.
-const outputs = () =>
+const outputs = (): Record<string, string> =>
     Object.fromEntries(
         [...readFileSync(outputFile, 'utf8').matchAll(/^(.+)<<(.+)\n([\s\S]*?)\n\2$/gm)].map(
-            ([, name, , value]) => [name, value]
+            ([, name = '', , value = '']) => [name, value]
         )
     )
 
