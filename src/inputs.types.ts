@@ -5,4 +5,5 @@ export interface Settings {
     includeOrgs: boolean
     exclude: string[]
     dryRun: boolean
+    workflowToken: string
 }

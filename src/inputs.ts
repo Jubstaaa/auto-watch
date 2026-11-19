@@ -5,6 +5,10 @@ import type { Settings } from './inputs.types'
 export const parseInputs = (): Settings => {
     const token = core.getInput('token')
     if (!token) throw new Error('The token input is empty. Add a classic token as a secret.')
+    core.setSecret(token)
+
+    const workflowToken = core.getInput('github-token')
+    if (workflowToken) core.setSecret(workflowToken)
 
     const rawHours = core.getInput('since-hours')
     const sinceHours = Number(rawHours)
@@ -23,5 +27,6 @@ export const parseInputs = (): Settings => {
             .map((pattern) => pattern.trim())
             .filter(Boolean),
         dryRun: core.getBooleanInput('dry-run'),
+        workflowToken,
     }
 }

@@ -1,4 +1,5 @@
 import { throttling } from '@octokit/plugin-throttling'
+import { RequestError } from '@octokit/request-error'
 import { Octokit } from '@octokit/rest'
 
 import type { Identity, Repo, Subscription } from './api.types'
@@ -44,8 +45,6 @@ const split = (fullName: string) => {
     return { owner, repo }
 }
 
-const status = (error: unknown) => (error as { status?: number }).status
-
 export const createApi = (token: string, workflowToken: string): GitHubApi => {
     const user = client(token)
     const job = client(workflowToken)
@@ -89,7 +88,7 @@ export const createApi = (token: string, workflowToken: string): GitHubApi => {
                 if (data.ignored) return 'ignored'
                 return data.subscribed ? 'watching' : 'none'
             } catch (error) {
-                if (status(error) === 404) return 'none'
+                if (error instanceof RequestError && error.status === 404) return 'none'
                 throw error
             }
         },

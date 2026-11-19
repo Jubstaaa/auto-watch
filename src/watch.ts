@@ -1,3 +1,5 @@
+import { errorMessage } from './error-message'
+
 import type { GitHubApi } from './api'
 import type { Repo } from './api.types'
 
@@ -29,7 +31,7 @@ export const watchAll = async (
             if (!dryRun) await api.watch(fullName)
             result.watched.push(fullName)
         } catch (error) {
-            result.failed.push({ fullName, reason: (error as Error).message })
+            result.failed.push({ fullName, reason: errorMessage(error) })
         }
     }
 
