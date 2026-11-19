@@ -5,7 +5,7 @@ import { parseInputs } from './inputs'
 import { runAutoWatch } from './run'
 import { renderSummary } from './summary'
 
-const main = async () => {
+const execute = async () => {
     const settings = parseInputs()
     const api = createApi(settings.token, core.getInput('github-token'))
 
@@ -31,4 +31,10 @@ const main = async () => {
     if (outcome.failure) core.setFailed(outcome.failure)
 }
 
-main().catch((error) => core.setFailed((error as Error).message))
+export const run = async (): Promise<void> => {
+    try {
+        await execute()
+    } catch (error) {
+        core.setFailed((error as Error).message)
+    }
+}

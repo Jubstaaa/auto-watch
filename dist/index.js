@@ -19489,7 +19489,7 @@ var require_light = __commonJS({
           }
           return this.Events.trigger("scheduled", { args: this.args, options: this.options });
         }
-        async doExecute(chained, clearGlobalState, run, free) {
+        async doExecute(chained, clearGlobalState, run2, free) {
           var error2, eventInfo, passed;
           if (this.retryCount === 0) {
             this._assertStatus("RUNNING");
@@ -19509,10 +19509,10 @@ var require_light = __commonJS({
             }
           } catch (error1) {
             error2 = error1;
-            return this._onFailure(error2, eventInfo, clearGlobalState, run, free);
+            return this._onFailure(error2, eventInfo, clearGlobalState, run2, free);
           }
         }
-        doExpire(clearGlobalState, run, free) {
+        doExpire(clearGlobalState, run2, free) {
           var error2, eventInfo;
           if (this._states.jobStatus(this.options.id === "RUNNING")) {
             this._states.next(this.options.id);
@@ -19520,9 +19520,9 @@ var require_light = __commonJS({
           this._assertStatus("EXECUTING");
           eventInfo = { args: this.args, options: this.options, retryCount: this.retryCount };
           error2 = new BottleneckError$1(`This job timed out after ${this.options.expiration} ms.`);
-          return this._onFailure(error2, eventInfo, clearGlobalState, run, free);
+          return this._onFailure(error2, eventInfo, clearGlobalState, run2, free);
         }
-        async _onFailure(error2, eventInfo, clearGlobalState, run, free) {
+        async _onFailure(error2, eventInfo, clearGlobalState, run2, free) {
           var retry, retryAfter;
           if (clearGlobalState()) {
             retry = await this.Events.trigger("failed", error2, eventInfo);
@@ -19530,7 +19530,7 @@ var require_light = __commonJS({
               retryAfter = ~~retry;
               this.Events.trigger("retry", `Retrying ${this.options.id} after ${retryAfter} ms`, eventInfo);
               this.retryCount++;
-              return run(retryAfter);
+              return run2(retryAfter);
             } else {
               this.doDone(eventInfo);
               await free(this.options, eventInfo);
@@ -20168,17 +20168,17 @@ var require_light = __commonJS({
             }
           }
           _run(index, job, wait) {
-            var clearGlobalState, free, run;
+            var clearGlobalState, free, run2;
             job.doRun();
             clearGlobalState = this._clearGlobalState.bind(this, index);
-            run = this._run.bind(this, index, job);
+            run2 = this._run.bind(this, index, job);
             free = this._free.bind(this, index, job);
             return this._scheduled[index] = {
               timeout: setTimeout(() => {
-                return job.doExecute(this._limiter, clearGlobalState, run, free);
+                return job.doExecute(this._limiter, clearGlobalState, run2, free);
               }, wait),
               expiration: job.options.expiration != null ? setTimeout(function() {
-                return job.doExpire(clearGlobalState, run, free);
+                return job.doExpire(clearGlobalState, run2, free);
               }, wait + job.options.expiration) : void 0,
               job
             };
@@ -27307,7 +27307,7 @@ var runAutoWatch = async (api, settings, env, now) => {
 };
 
 // src/main.ts
-var main = async () => {
+var execute = async () => {
   const settings = parseInputs();
   const api = createApi(settings.token, getInput("github-token"));
   const outcome = await runAutoWatch(
@@ -27328,7 +27328,16 @@ var main = async () => {
   await summary.write();
   if (outcome.failure) setFailed(outcome.failure);
 };
-main().catch((error2) => setFailed(error2.message));
+var run = async () => {
+  try {
+    await execute();
+  } catch (error2) {
+    setFailed(error2.message);
+  }
+};
+
+// src/index.ts
+void run();
 /*! Bundled license information:
 
 undici/lib/web/fetch/body.js:
