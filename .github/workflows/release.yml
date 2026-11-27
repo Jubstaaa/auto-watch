@@ -1,0 +1,47 @@
+name: Release
+
+on:
+    push:
+        branches: [main]
+
+permissions:
+    contents: read
+
+jobs:
+    release-please:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: write
+            pull-requests: write
+        outputs:
+            major: ${{ steps.release.outputs.major }}
+            released: ${{ steps.release.outputs.release_created }}
+            tag: ${{ steps.release.outputs.tag_name }}
+        steps:
+            - id: release
+              uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+              with:
+                  release-type: node
+                  token: ${{ secrets.RELEASE_TOKEN }}
+
+    major-tag:
+        needs: release-please
+        if: ${{ needs.release-please.outputs.released == 'true' }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: ${{ needs.release-please.outputs.tag }}
+            - name: Move the major tag to this release
+              env:
+                  MAJOR: ${{ needs.release-please.outputs.major }}
+                  TAG: ${{ needs.release-please.outputs.tag }}
+              run: |
+                  git config user.name github-actions[bot]
+                  git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+                  git tag -fa "v$MAJOR" -m "$TAG"
+                  git push -f origin "v$MAJOR"
