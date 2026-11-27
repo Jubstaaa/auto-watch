@@ -1,27 +1,4 @@
-import js from '@eslint/js'
-import prettier from 'eslint-config-prettier'
-import tseslint from 'typescript-eslint'
+import { node } from '@jubstaaa/config/eslint/node'
+import { defineConfig } from 'eslint/config'
 
-export default tseslint.config(
-    { ignores: ['dist/'] },
-    js.configs.recommended,
-    tseslint.configs.strictTypeChecked,
-    tseslint.configs.stylisticTypeChecked,
-    {
-        languageOptions: {
-            parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
-        },
-    },
-    {
-        rules: {
-            '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
-        },
-    },
-    {
-        // Fakes implement async interfaces without awaiting anything.
-        files: ['test/**'],
-        rules: { '@typescript-eslint/require-await': 'off' },
-    },
-    { files: ['**/*.mjs'], extends: [tseslint.configs.disableTypeChecked] },
-    prettier
-)
+export default defineConfig([...node({ tsconfigRootDir: import.meta.dirname })])

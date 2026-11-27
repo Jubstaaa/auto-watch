@@ -1,23 +1,29 @@
 import picomatch from 'picomatch'
 
-import { errorMessage } from './error-message'
-
 import type { GitHubApi } from './api'
 import type { Repo } from './api.types'
 import type { Settings } from './inputs.types'
 
+import { errorMessage } from './error-message'
+
 export interface Candidates {
-    repos: Repo[]
     excluded: number
+    repos: Repo[]
     warnings: string[]
 }
 
 const HOUR = 60 * 60 * 1000
 
-export const isRecent = (createdAt: string, sinceHours: number, now: Date): boolean =>
-    now.getTime() - new Date(createdAt).getTime() <= sinceHours * HOUR
+export const isRecent = (
+    createdAt: string,
+    sinceHours: number,
+    now: Date
+): boolean => now.getTime() - new Date(createdAt).getTime() <= sinceHours * HOUR
 
-const orgReposOf = async (api: GitHubApi, warnings: string[]): Promise<Repo[]> => {
+const orgReposOf = async (
+    api: GitHubApi,
+    warnings: string[]
+): Promise<Repo[]> => {
     let orgs: string[]
     try {
         orgs = await api.adminOrgs()
@@ -29,7 +35,7 @@ const orgReposOf = async (api: GitHubApi, warnings: string[]): Promise<Repo[]> =
     }
 
     const lists = await Promise.all(
-        orgs.map(async (org) => {
+        orgs.map(async org => {
             try {
                 return await api.orgRepos(org)
             } catch (error) {
@@ -60,9 +66,13 @@ export const collectCandidates = async (
 
     const isExcluded = picomatch(settings.exclude, { nocase: true })
     let excluded = 0
-    const repos = [...unique.values()].filter((repo) => {
+    const repos = [...unique.values()].filter(repo => {
         if (repo.fork || repo.archived) return false
-        if (!settings.backfill && !isRecent(repo.createdAt, settings.sinceHours, now)) return false
+        if (
+            !settings.backfill &&
+            !isRecent(repo.createdAt, settings.sinceHours, now)
+        )
+            return false
         if (isExcluded(repo.fullName)) {
             excluded += 1
             return false
@@ -70,5 +80,5 @@ export const collectCandidates = async (
         return true
     })
 
-    return { repos, excluded, warnings }
+    return { excluded, repos, warnings }
 }

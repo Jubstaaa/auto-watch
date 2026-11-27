@@ -5,13 +5,13 @@ import { Octokit } from '@octokit/rest'
 import type { Identity, Repo, Subscription } from './api.types'
 
 export interface GitHubApi {
-    identity(): Promise<Identity>
-    ownedRepos(): Promise<Repo[]>
     adminOrgs(): Promise<string[]>
+    enableWorkflow(fullName: string, workflowRef: string): Promise<void>
+    identity(): Promise<Identity>
     orgRepos(org: string): Promise<Repo[]>
+    ownedRepos(): Promise<Repo[]>
     subscription(fullName: string): Promise<Subscription>
     watch(fullName: string): Promise<void>
-    enableWorkflow(fullName: string, workflowRef: string): Promise<void>
 }
 
 const Throttled = Octokit.plugin(throttling)
@@ -19,25 +19,27 @@ const Throttled = Octokit.plugin(throttling)
 const client = (token: string) =>
     new Throttled({
         auth: token,
-        userAgent: 'auto-watch',
         throttle: {
-            onRateLimit: (_after, _options, _octokit, retryCount) => retryCount < 2,
-            onSecondaryRateLimit: (_after, _options, _octokit, retryCount) => retryCount < 2,
+            onRateLimit: (_after, _options, _octokit, retryCount) =>
+                retryCount < 2,
+            onSecondaryRateLimit: (_after, _options, _octokit, retryCount) =>
+                retryCount < 2,
         },
+        userAgent: 'auto-watch',
     })
 
 const toRepo = (repo: {
-    full_name: string
-    fork: boolean
-    private: boolean
     archived?: boolean
-    created_at?: string | null
+    created_at?: null | string
+    fork: boolean
+    full_name: string
+    private: boolean
 }): Repo => ({
-    fullName: repo.full_name,
-    fork: repo.fork,
-    private: repo.private,
     archived: repo.archived ?? false,
     createdAt: repo.created_at ?? new Date(0).toISOString(),
+    fork: repo.fork,
+    fullName: repo.full_name,
+    private: repo.private,
 })
 
 const split = (fullName: string) => {
@@ -50,6 +52,21 @@ export const createApi = (token: string, workflowToken: string): GitHubApi => {
     const job = client(workflowToken)
 
     return {
+        async adminOrgs() {
+            const memberships = await user.paginate(
+                user.rest.orgs.listMembershipsForAuthenticatedUser,
+                { per_page: 100, state: 'active' }
+            )
+            return memberships
+                .filter(m => m.role === 'admin')
+                .map(m => m.organization.login)
+        },
+        async enableWorkflow(fullName: string, workflowRef: string) {
+            await job.rest.actions.enableWorkflow({
+                ...split(fullName),
+                workflow_id: workflowRef,
+            })
+        },
         async identity(): Promise<Identity> {
             const response = await user.rest.users.getAuthenticated()
             const header = response.headers['x-oauth-scopes']
@@ -60,47 +77,46 @@ export const createApi = (token: string, workflowToken: string): GitHubApi => {
                         ? null
                         : header
                               .split(',')
-                              .map((scope) => scope.trim())
+                              .map(scope => scope.trim())
                               .filter(Boolean),
             }
         },
-        async ownedRepos() {
-            const repos = await user.paginate(user.rest.repos.listForAuthenticatedUser, {
-                affiliation: 'owner',
+        async orgRepos(org: string) {
+            const repos = await user.paginate(user.rest.repos.listForOrg, {
+                org,
                 per_page: 100,
             })
             return repos.map(toRepo)
         },
-        async adminOrgs() {
-            const memberships = await user.paginate(
-                user.rest.orgs.listMembershipsForAuthenticatedUser,
-                { state: 'active', per_page: 100 }
+        async ownedRepos() {
+            const repos = await user.paginate(
+                user.rest.repos.listForAuthenticatedUser,
+                {
+                    affiliation: 'owner',
+                    per_page: 100,
+                }
             )
-            return memberships.filter((m) => m.role === 'admin').map((m) => m.organization.login)
-        },
-        async orgRepos(org: string) {
-            const repos = await user.paginate(user.rest.repos.listForOrg, { org, per_page: 100 })
             return repos.map(toRepo)
         },
         async subscription(fullName: string): Promise<Subscription> {
             try {
-                const { data } = await user.rest.activity.getRepoSubscription(split(fullName))
+                const { data } = await user.rest.activity.getRepoSubscription(
+                    split(fullName)
+                )
                 if (data.ignored) return 'ignored'
                 return data.subscribed ? 'watching' : 'none'
             } catch (error) {
-                if (error instanceof RequestError && error.status === 404) return 'none'
+                if (error instanceof RequestError && error.status === 404)
+                    return 'none'
                 throw error
             }
         },
         async watch(fullName: string) {
             await user.rest.activity.setRepoSubscription({
                 ...split(fullName),
-                subscribed: true,
                 ignored: false,
+                subscribed: true,
             })
-        },
-        async enableWorkflow(fullName: string, workflowRef: string) {
-            await job.rest.actions.enableWorkflow({ ...split(fullName), workflow_id: workflowRef })
         },
     }
 }

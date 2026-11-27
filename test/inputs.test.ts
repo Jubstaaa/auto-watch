@@ -3,13 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseInputs } from '../src/inputs'
 
 const DEFAULTS = {
-    token: 't',
-    backfill: 'false',
-    'since-hours': '24',
-    'include-orgs': 'true',
-    exclude: '',
+    'backfill': 'false',
     'dry-run': 'false',
+    'exclude': '',
     'github-token': 'job',
+    'include-orgs': 'true',
+    'since-hours': '24',
+    'token': 't',
 }
 
 const withInputs = (values: Record<string, string>) => {
@@ -27,19 +27,27 @@ describe('parseInputs', () => {
     it('applies the defaults', () => {
         withInputs({})
         expect(parseInputs()).toEqual({
-            token: 't',
             backfill: false,
-            sinceHours: 24,
-            includeOrgs: true,
-            exclude: [],
             dryRun: false,
+            exclude: [],
+            includeOrgs: true,
+            sinceHours: 24,
+            token: 't',
             workflowToken: 'job',
         })
     })
 
     it('reads booleans the way Actions writes them', () => {
-        withInputs({ backfill: 'true', 'include-orgs': 'False', 'dry-run': 'TRUE' })
-        expect(parseInputs()).toMatchObject({ backfill: true, includeOrgs: false, dryRun: true })
+        withInputs({
+            'backfill': 'true',
+            'dry-run': 'TRUE',
+            'include-orgs': 'False',
+        })
+        expect(parseInputs()).toMatchObject({
+            backfill: true,
+            dryRun: true,
+            includeOrgs: false,
+        })
     })
 
     it('splits exclude on commas and newlines and drops blanks', () => {
@@ -52,14 +60,16 @@ describe('parseInputs', () => {
         expect(() => parseInputs()).toThrow('token')
     })
 
-    it.each(['abc', '0', '-3'])('rejects since-hours %s', (value) => {
+    it.each(['abc', '0', '-3'])('rejects since-hours %s', value => {
         withInputs({ 'since-hours': value })
-        expect(() => parseInputs()).toThrow('since-hours must be a positive number')
+        expect(() => parseInputs()).toThrow(
+            'since-hours must be a positive number'
+        )
     })
 
     it('masks both tokens in the log', () => {
         const write = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
-        withInputs({ token: 'pat-value', 'github-token': 'job-value' })
+        withInputs({ 'github-token': 'job-value', 'token': 'pat-value' })
         parseInputs()
         const log = write.mock.calls.map(([text]) => String(text)).join('')
         expect(log).toContain('::add-mask::pat-value')

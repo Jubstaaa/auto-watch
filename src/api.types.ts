@@ -1,14 +1,14 @@
-export interface Repo {
-    fullName: string
-    fork: boolean
-    private: boolean
-    archived: boolean
-    createdAt: string
-}
-
-export type Subscription = 'none' | 'watching' | 'ignored'
-
 export interface Identity {
     login: string
-    scopes: string[] | null
+    scopes: null | string[]
 }
+
+export interface Repo {
+    archived: boolean
+    createdAt: string
+    fork: boolean
+    fullName: string
+    private: boolean
+}
+
+export type Subscription = 'ignored' | 'none' | 'watching'

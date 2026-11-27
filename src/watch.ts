@@ -1,13 +1,13 @@
-import { errorMessage } from './error-message'
-
 import type { GitHubApi } from './api'
 import type { Repo } from './api.types'
 
+import { errorMessage } from './error-message'
+
 export interface WatchResult {
-    watched: string[]
     alreadyWatching: string[]
-    ignored: string[]
     failed: { fullName: string; reason: string }[]
+    ignored: string[]
+    watched: string[]
 }
 
 export const watchAll = async (
@@ -15,7 +15,12 @@ export const watchAll = async (
     repos: Repo[],
     dryRun: boolean
 ): Promise<WatchResult> => {
-    const result: WatchResult = { watched: [], alreadyWatching: [], ignored: [], failed: [] }
+    const result: WatchResult = {
+        alreadyWatching: [],
+        failed: [],
+        ignored: [],
+        watched: [],
+    }
 
     for (const { fullName } of repos) {
         try {

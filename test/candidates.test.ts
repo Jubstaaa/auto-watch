@@ -1,34 +1,34 @@
 import { describe, expect, it } from 'vitest'
 
-import { collectCandidates, isRecent } from '../src/candidates'
-import { FakeApi } from './fake-api'
-
 import type { Repo } from '../src/api.types'
 import type { Settings } from '../src/inputs.types'
+
+import { collectCandidates, isRecent } from '../src/candidates'
+import { FakeApi } from './fake-api'
 
 const NOW = new Date('2026-10-12T12:00:00Z')
 
 const repo = (fullName: string, extra: Partial<Repo> = {}): Repo => ({
-    fullName,
-    fork: false,
-    private: false,
     archived: false,
     createdAt: '2026-10-12T10:00:00Z',
+    fork: false,
+    fullName,
+    private: false,
     ...extra,
 })
 
 const settings = (extra: Partial<Settings> = {}): Settings => ({
-    token: 't',
     backfill: false,
-    sinceHours: 24,
-    includeOrgs: true,
-    exclude: [],
     dryRun: false,
+    exclude: [],
+    includeOrgs: true,
+    sinceHours: 24,
+    token: 't',
     workflowToken: 'job',
     ...extra,
 })
 
-const names = (repos: Repo[]) => repos.map((r) => r.fullName)
+const names = (repos: Repo[]) => repos.map(r => r.fullName)
 
 describe('isRecent', () => {
     it('keeps repos inside the window and drops older ones', () => {
@@ -47,9 +47,19 @@ describe('collectCandidates', () => {
             repo('me/old', { createdAt: '2025-06-01T00:00:00Z' }),
         ]
 
-        expect(names((await collectCandidates(api, settings(), NOW)).repos)).toEqual(['me/new'])
         expect(
-            names((await collectCandidates(api, settings({ backfill: true }), NOW)).repos)
+            names((await collectCandidates(api, settings(), NOW)).repos)
+        ).toEqual(['me/new'])
+        expect(
+            names(
+                (
+                    await collectCandidates(
+                        api,
+                        settings({ backfill: true }),
+                        NOW
+                    )
+                ).repos
+            )
         ).toEqual(['me/new', 'me/old'])
     })
 
@@ -58,12 +68,19 @@ describe('collectCandidates', () => {
         api.repos = [repo('me/a')]
         api.orgs = { acme: [repo('acme/api')] }
 
-        expect(names((await collectCandidates(api, settings(), NOW)).repos)).toEqual([
-            'me/a',
-            'acme/api',
-        ])
         expect(
-            names((await collectCandidates(api, settings({ includeOrgs: false }), NOW)).repos)
+            names((await collectCandidates(api, settings(), NOW)).repos)
+        ).toEqual(['me/a', 'acme/api'])
+        expect(
+            names(
+                (
+                    await collectCandidates(
+                        api,
+                        settings({ includeOrgs: false }),
+                        NOW
+                    )
+                ).repos
+            )
         ).toEqual(['me/a'])
     })
 
@@ -84,7 +101,9 @@ describe('collectCandidates', () => {
     it('lists a repo once even if the API returns it twice', async () => {
         const api = new FakeApi()
         api.repos = [repo('me/a'), repo('Me/A')]
-        expect((await collectCandidates(api, settings(), NOW)).repos).toHaveLength(1)
+        expect(
+            (await collectCandidates(api, settings(), NOW)).repos
+        ).toHaveLength(1)
     })
 
     it('keeps going with personal repos when the org lookup fails', async () => {
