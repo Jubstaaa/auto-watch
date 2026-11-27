@@ -22,7 +22,7 @@
         "picomatch": "^4.0.7"
     },
     "devDependencies": {
-        "@jubstaaa/config": "github:Jubstaaa/configs#3c96d2f709c61da12e7229e0086e763c02b2ece5",
+        "@jubstaa/config": "^1.6.0",
         "@types/node": "^26.6.6",
         "@types/picomatch": "^4.0.3",
         "@typescript/native": "npm:typescript@^7.0.2",
