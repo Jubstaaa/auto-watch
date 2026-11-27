@@ -1,25 +1,25 @@
 import * as core from '@actions/core'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { renderSummary, runFailed } from '../src/summary'
-
 import type { Report } from '../src/summary'
 import type { WatchResult } from '../src/watch'
 
+import { renderSummary, runFailed } from '../src/summary'
+
 const result = (extra: Partial<WatchResult> = {}): WatchResult => ({
-    watched: [],
     alreadyWatching: [],
-    ignored: [],
     failed: [],
+    ignored: [],
+    watched: [],
     ...extra,
 })
 
 const render = (extra: Partial<Report>) =>
     renderSummary(core.summary, {
-        result: result(),
-        candidates: { repos: [], excluded: 0, warnings: [] },
-        privateNames: new Set(),
+        candidates: { excluded: 0, repos: [], warnings: [] },
         dryRun: false,
+        privateNames: new Set(),
+        result: result(),
         ...extra,
     }).stringify()
 
@@ -30,8 +30,16 @@ afterEach(() => {
 describe('renderSummary', () => {
     it('lists what was watched and the counts', () => {
         const text = render({
-            result: result({ watched: ['me/a'], alreadyWatching: ['me/b'], ignored: ['me/c'] }),
-            candidates: { repos: [], excluded: 2, warnings: ['Skipped organization repos'] },
+            candidates: {
+                excluded: 2,
+                repos: [],
+                warnings: ['Skipped organization repos'],
+            },
+            result: result({
+                alreadyWatching: ['me/b'],
+                ignored: ['me/c'],
+                watched: ['me/a'],
+            }),
         })
         expect(text).toContain('Watched 1 repo')
         expect(text).toContain('<code>me/a</code>')
@@ -42,18 +50,18 @@ describe('renderSummary', () => {
     })
 
     it('says nothing changed in a dry run', () => {
-        expect(render({ result: result({ watched: ['me/a'] }), dryRun: true })).toContain(
-            'Dry run: would watch 1 repo'
-        )
+        expect(
+            render({ dryRun: true, result: result({ watched: ['me/a'] }) })
+        ).toContain('Dry run: would watch 1 repo')
     })
 
     it('counts private repos without naming them', () => {
         const text = render({
+            privateNames: new Set(['me/broken', 'me/hidden', 'me/secret']),
             result: result({
-                watched: ['me/public', 'me/secret', 'me/hidden'],
                 failed: [{ fullName: 'me/broken', reason: 'Not Found' }],
+                watched: ['me/public', 'me/secret', 'me/hidden'],
             }),
-            privateNames: new Set(['me/secret', 'me/hidden', 'me/broken']),
         })
         expect(text).toContain('<code>me/public</code>')
         expect(text).toContain('2 private repos')
@@ -65,9 +73,16 @@ describe('renderSummary', () => {
 describe('runFailed', () => {
     it('fails only when every attempt failed', () => {
         expect(runFailed(result())).toBe(false)
-        expect(runFailed(result({ failed: [{ fullName: 'a/b', reason: 'x' }] }))).toBe(true)
         expect(
-            runFailed(result({ watched: ['a/c'], failed: [{ fullName: 'a/b', reason: 'x' }] }))
+            runFailed(result({ failed: [{ fullName: 'a/b', reason: 'x' }] }))
+        ).toBe(true)
+        expect(
+            runFailed(
+                result({
+                    failed: [{ fullName: 'a/b', reason: 'x' }],
+                    watched: ['a/c'],
+                })
+            )
         ).toBe(false)
     })
 })

@@ -1,8 +1,8 @@
 import { basename } from 'node:path'
 
-import { errorMessage } from './error-message'
-
 import type { GitHubApi } from './api'
+
+import { errorMessage } from './error-message'
 
 export const workflowFileOf = (workflowRef: string): string =>
     basename(workflowRef.replace(/@.*$/, ''))
@@ -11,7 +11,7 @@ export const keepAlive = async (
     api: GitHubApi,
     fullName: string,
     workflowRef: string
-): Promise<string | null> => {
+): Promise<null | string> => {
     try {
         await api.enableWorkflow(fullName, workflowRef)
         return null

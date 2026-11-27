@@ -1,14 +1,15 @@
 {
+    "extends": "@jubstaaa/config/tsconfig/node",
     "compilerOptions": {
         "target": "ES2023",
         "module": "ESNext",
         "moduleResolution": "Bundler",
-        "strict": true,
-        "noUncheckedIndexedAccess": true,
-        "verbatimModuleSyntax": true,
-        "skipLibCheck": true,
-        "noEmit": true,
-        "types": ["node"]
+        "types": [
+            "node"
+        ]
     },
-    "include": ["src", "test"]
+    "include": [
+        "src",
+        "test"
+    ]
 }

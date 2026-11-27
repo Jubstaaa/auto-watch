@@ -23358,7 +23358,9 @@ function expand(template, context) {
         }
         expression.split(/,/g).forEach(function(variable) {
           var tmp = /([^:\*]*)(?::(\d+)|(\*))?/.exec(variable);
-          values.push(getValues(context, operator, tmp[1], tmp[2] || tmp[3]));
+          values.push(
+            ...getValues(context, operator, tmp[1], tmp[2] || tmp[3])
+          );
         });
         if (operator && operator !== "+") {
           var separator = ",";
@@ -27045,18 +27047,18 @@ var Octokit2 = Octokit.plugin(requestLog, legacyRestEndpointMethods, paginateRes
 var Throttled = Octokit2.plugin(throttling);
 var client = (token) => new Throttled({
   auth: token,
-  userAgent: "auto-watch",
   throttle: {
     onRateLimit: (_after, _options, _octokit, retryCount) => retryCount < 2,
     onSecondaryRateLimit: (_after, _options, _octokit, retryCount) => retryCount < 2
-  }
+  },
+  userAgent: "auto-watch"
 });
 var toRepo = (repo) => ({
-  fullName: repo.full_name,
-  fork: repo.fork,
-  private: repo.private,
   archived: repo.archived ?? false,
-  createdAt: repo.created_at ?? (/* @__PURE__ */ new Date(0)).toISOString()
+  createdAt: repo.created_at ?? (/* @__PURE__ */ new Date(0)).toISOString(),
+  fork: repo.fork,
+  fullName: repo.full_name,
+  private: repo.private
 });
 var split = (fullName) => {
   const [owner = "", repo = ""] = fullName.split("/");
@@ -27066,6 +27068,19 @@ var createApi = (token, workflowToken) => {
   const user = client(token);
   const job = client(workflowToken);
   return {
+    async adminOrgs() {
+      const memberships = await user.paginate(
+        user.rest.orgs.listMembershipsForAuthenticatedUser,
+        { per_page: 100, state: "active" }
+      );
+      return memberships.filter((m) => m.role === "admin").map((m) => m.organization.login);
+    },
+    async enableWorkflow(fullName, workflowRef) {
+      await job.rest.actions.enableWorkflow({
+        ...split(fullName),
+        workflow_id: workflowRef
+      });
+    },
     async identity() {
       const response = await user.rest.users.getAuthenticated();
       const header = response.headers["x-oauth-scopes"];
@@ -27074,43 +27089,42 @@ var createApi = (token, workflowToken) => {
         scopes: header === void 0 ? null : header.split(",").map((scope) => scope.trim()).filter(Boolean)
       };
     },
-    async ownedRepos() {
-      const repos = await user.paginate(user.rest.repos.listForAuthenticatedUser, {
-        affiliation: "owner",
+    async orgRepos(org) {
+      const repos = await user.paginate(user.rest.repos.listForOrg, {
+        org,
         per_page: 100
       });
       return repos.map(toRepo);
     },
-    async adminOrgs() {
-      const memberships = await user.paginate(
-        user.rest.orgs.listMembershipsForAuthenticatedUser,
-        { state: "active", per_page: 100 }
+    async ownedRepos() {
+      const repos = await user.paginate(
+        user.rest.repos.listForAuthenticatedUser,
+        {
+          affiliation: "owner",
+          per_page: 100
+        }
       );
-      return memberships.filter((m) => m.role === "admin").map((m) => m.organization.login);
-    },
-    async orgRepos(org) {
-      const repos = await user.paginate(user.rest.repos.listForOrg, { org, per_page: 100 });
       return repos.map(toRepo);
     },
     async subscription(fullName) {
       try {
-        const { data } = await user.rest.activity.getRepoSubscription(split(fullName));
+        const { data } = await user.rest.activity.getRepoSubscription(
+          split(fullName)
+        );
         if (data.ignored) return "ignored";
         return data.subscribed ? "watching" : "none";
       } catch (error2) {
-        if (error2 instanceof RequestError && error2.status === 404) return "none";
+        if (error2 instanceof RequestError && error2.status === 404)
+          return "none";
         throw error2;
       }
     },
     async watch(fullName) {
       await user.rest.activity.setRepoSubscription({
         ...split(fullName),
-        subscribed: true,
-        ignored: false
+        ignored: false,
+        subscribed: true
       });
-    },
-    async enableWorkflow(fullName, workflowRef) {
-      await job.rest.actions.enableWorkflow({ ...split(fullName), workflow_id: workflowRef });
     }
   };
 };
@@ -27121,22 +27135,27 @@ var errorMessage = (error2) => error2 instanceof Error ? error2.message : String
 // src/inputs.ts
 var parseInputs = () => {
   const token = getInput("token");
-  if (!token) throw new Error("The token input is empty. Add a classic token as a secret.");
+  if (!token)
+    throw new Error(
+      "The token input is empty. Add a classic token as a secret."
+    );
   setSecret(token);
   const workflowToken = getInput("github-token");
   if (workflowToken) setSecret(workflowToken);
   const rawHours = getInput("since-hours");
   const sinceHours = Number(rawHours);
   if (!Number.isFinite(sinceHours) || sinceHours <= 0) {
-    throw new Error(`since-hours must be a positive number, got "${rawHours}"`);
+    throw new Error(
+      `since-hours must be a positive number, got "${rawHours}"`
+    );
   }
   return {
-    token,
     backfill: getBooleanInput("backfill"),
-    sinceHours,
-    includeOrgs: getBooleanInput("include-orgs"),
-    exclude: getMultilineInput("exclude").flatMap((line) => line.split(",")).map((pattern) => pattern.trim()).filter(Boolean),
     dryRun: getBooleanInput("dry-run"),
+    exclude: getMultilineInput("exclude").flatMap((line) => line.split(",")).map((pattern) => pattern.trim()).filter(Boolean),
+    includeOrgs: getBooleanInput("include-orgs"),
+    sinceHours,
+    token,
     workflowToken
   };
 };
@@ -27182,14 +27201,15 @@ var collectCandidates = async (api, settings, now) => {
   let excluded = 0;
   const repos = [...unique.values()].filter((repo) => {
     if (repo.fork || repo.archived) return false;
-    if (!settings.backfill && !isRecent(repo.createdAt, settings.sinceHours, now)) return false;
+    if (!settings.backfill && !isRecent(repo.createdAt, settings.sinceHours, now))
+      return false;
     if (isExcluded(repo.fullName)) {
       excluded += 1;
       return false;
     }
     return true;
   });
-  return { repos, excluded, warnings };
+  return { excluded, repos, warnings };
 };
 
 // src/keepalive.ts
@@ -27210,16 +27230,19 @@ var runFailed = (result) => result.failed.length > 0 && result.watched.length ==
 var hidePrivate = (names, privateNames) => {
   const shown = names.filter((name) => !privateNames.has(name));
   const hidden = names.length - shown.length;
-  return { shown, hidden: hidden ? plural(hidden, "private repo") : null };
+  return { hidden: hidden ? plural(hidden, "private repo") : null, shown };
 };
 var repoLabel = (fullName, privateNames) => privateNames.has(fullName) ? "A private repo" : fullName;
 var addSection = (summary2, heading, items) => {
   if (items.length) summary2.addHeading(heading, 3).addList(items);
 };
-var renderSummary = (summary2, { result, candidates, privateNames, dryRun }) => {
-  const { shown, hidden } = hidePrivate(result.watched, privateNames);
+var renderSummary = (summary2, { candidates, dryRun, privateNames, result }) => {
+  const { hidden, shown } = hidePrivate(result.watched, privateNames);
   const count = plural(result.watched.length);
-  summary2.addHeading(dryRun ? `Dry run: would watch ${count}` : `Watched ${count}`, 2);
+  summary2.addHeading(
+    dryRun ? `Dry run: would watch ${count}` : `Watched ${count}`,
+    2
+  );
   if (result.watched.length) {
     summary2.addList([
       ...shown.map((name) => `<code>${name}</code>`),
@@ -27239,7 +27262,9 @@ var renderSummary = (summary2, { result, candidates, privateNames, dryRun }) => 
   addSection(
     summary2,
     "Failed",
-    result.failed.map((f) => `${repoLabel(f.fullName, privateNames)}: ${f.reason}`)
+    result.failed.map(
+      (f) => `${repoLabel(f.fullName, privateNames)}: ${f.reason}`
+    )
   );
   addSection(summary2, "Warnings", candidates.warnings);
   return summary2;
@@ -27264,7 +27289,12 @@ var checkToken = (identity) => {
 
 // src/watch.ts
 var watchAll = async (api, repos, dryRun) => {
-  const result = { watched: [], alreadyWatching: [], ignored: [], failed: [] };
+  const result = {
+    alreadyWatching: [],
+    failed: [],
+    ignored: [],
+    watched: []
+  };
   for (const { fullName } of repos) {
     try {
       const state = await api.subscription(fullName);
@@ -27289,15 +27319,19 @@ var watchAll = async (api, repos, dryRun) => {
 var runAutoWatch = async (api, settings, env, now) => {
   const warnings = [];
   if (env.repository && env.workflowRef && !settings.dryRun) {
-    const warning2 = await keepAlive(api, env.repository, workflowFileOf(env.workflowRef));
+    const warning2 = await keepAlive(
+      api,
+      env.repository,
+      workflowFileOf(env.workflowRef)
+    );
     if (warning2) warnings.push(warning2);
   }
   const stopped = (failure) => ({
-    watched: [],
+    failure,
     log: [],
-    warnings,
     report: null,
-    failure
+    warnings,
+    watched: []
   });
   try {
     checkToken(await api.identity());
@@ -27316,18 +27350,20 @@ var runAutoWatch = async (api, settings, env, now) => {
   const privateNames = new Set(
     candidates.repos.filter((repo) => repo.private).map((repo) => repo.fullName)
   );
-  const { shown, hidden } = hidePrivate(result.watched, privateNames);
+  const { hidden, shown } = hidePrivate(result.watched, privateNames);
   return {
-    watched: result.watched,
-    log: [...shown, ...hidden ? [hidden] : []].map((name) => `${verb} ${name}`),
+    failure: runFailed(result) ? "Every watch attempt failed. See the warnings above." : null,
+    log: [...shown, ...hidden ? [hidden] : []].map(
+      (name) => `${verb} ${name}`
+    ),
+    report: { candidates, dryRun: settings.dryRun, privateNames, result },
     warnings: [
       ...candidates.warnings,
       ...result.failed.map(
         ({ fullName, reason }) => `${repoLabel(fullName, privateNames)}: ${reason}`
       )
     ],
-    report: { result, candidates, privateNames, dryRun: settings.dryRun },
-    failure: runFailed(result) ? "Every watch attempt failed. See the warnings above." : null
+    watched: result.watched
   };
 };
 

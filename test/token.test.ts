@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { TOKEN_LINK, TokenError, checkToken } from '../src/token'
+import { checkToken, TOKEN_LINK, TokenError } from '../src/token'
 
 describe('checkToken', () => {
     it('accepts a classic token with notifications', () => {

@@ -1,3 +1,8 @@
+import type { GitHubApi } from './api'
+import type { Candidates } from './candidates'
+import type { Settings } from './inputs.types'
+import type { Report } from './summary'
+
 import { collectCandidates } from './candidates'
 import { errorMessage } from './error-message'
 import { keepAlive, workflowFileOf } from './keepalive'
@@ -5,22 +10,17 @@ import { hidePrivate, repoLabel, runFailed } from './summary'
 import { checkToken } from './token'
 import { watchAll } from './watch'
 
-import type { GitHubApi } from './api'
-import type { Candidates } from './candidates'
-import type { Settings } from './inputs.types'
-import type { Report } from './summary'
-
 export interface RunEnv {
-    repository?: string
-    workflowRef?: string
+    repository?: string | undefined
+    workflowRef?: string | undefined
 }
 
 export interface RunOutcome {
-    watched: string[]
+    failure: null | string
     log: string[]
+    report: null | Report
     warnings: string[]
-    report: Report | null
-    failure: string | null
+    watched: string[]
 }
 
 export const runAutoWatch = async (
@@ -32,16 +32,20 @@ export const runAutoWatch = async (
     const warnings: string[] = []
 
     if (env.repository && env.workflowRef && !settings.dryRun) {
-        const warning = await keepAlive(api, env.repository, workflowFileOf(env.workflowRef))
+        const warning = await keepAlive(
+            api,
+            env.repository,
+            workflowFileOf(env.workflowRef)
+        )
         if (warning) warnings.push(warning)
     }
 
     const stopped = (failure: string): RunOutcome => ({
-        watched: [],
-        log: [],
-        warnings,
-        report: null,
         failure,
+        log: [],
+        report: null,
+        warnings,
+        watched: [],
     })
 
     try {
@@ -61,20 +65,25 @@ export const runAutoWatch = async (
     const result = await watchAll(api, candidates.repos, settings.dryRun)
     const verb = settings.dryRun ? 'Would watch' : 'Watching'
     const privateNames = new Set(
-        candidates.repos.filter((repo) => repo.private).map((repo) => repo.fullName)
+        candidates.repos.filter(repo => repo.private).map(repo => repo.fullName)
     )
-    const { shown, hidden } = hidePrivate(result.watched, privateNames)
+    const { hidden, shown } = hidePrivate(result.watched, privateNames)
 
     return {
-        watched: result.watched,
-        log: [...shown, ...(hidden ? [hidden] : [])].map((name) => `${verb} ${name}`),
+        failure: runFailed(result)
+            ? 'Every watch attempt failed. See the warnings above.'
+            : null,
+        log: [...shown, ...(hidden ? [hidden] : [])].map(
+            name => `${verb} ${name}`
+        ),
+        report: { candidates, dryRun: settings.dryRun, privateNames, result },
         warnings: [
             ...candidates.warnings,
             ...result.failed.map(
-                ({ fullName, reason }) => `${repoLabel(fullName, privateNames)}: ${reason}`
+                ({ fullName, reason }) =>
+                    `${repoLabel(fullName, privateNames)}: ${reason}`
             ),
         ],
-        report: { result, candidates, privateNames, dryRun: settings.dryRun },
-        failure: runFailed(result) ? 'Every watch attempt failed. See the warnings above.' : null,
+        watched: result.watched,
     }
 }

@@ -1,9 +1,9 @@
 export interface Settings {
-    token: string
     backfill: boolean
-    sinceHours: number
-    includeOrgs: boolean
-    exclude: string[]
     dryRun: boolean
+    exclude: string[]
+    includeOrgs: boolean
+    sinceHours: number
+    token: string
     workflowToken: string
 }

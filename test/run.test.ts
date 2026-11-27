@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { FakeApi } from './fake-api'
-import { runAutoWatch } from '../src/run'
-
 import type { Settings } from '../src/inputs.types'
+
+import { runAutoWatch } from '../src/run'
+import { FakeApi } from './fake-api'
 
 const NOW = new Date('2026-10-12T12:00:00Z')
 const ENV = {
@@ -12,12 +12,12 @@ const ENV = {
 }
 
 const settings = (extra: Partial<Settings> = {}): Settings => ({
-    token: 't',
     backfill: false,
-    sinceHours: 24,
-    includeOrgs: true,
-    exclude: [],
     dryRun: false,
+    exclude: [],
+    includeOrgs: true,
+    sinceHours: 24,
+    token: 't',
     workflowToken: 'job',
     ...extra,
 })
@@ -27,11 +27,11 @@ describe('runAutoWatch', () => {
         const api = new FakeApi()
         api.repos = [
             {
-                fullName: 'me/new',
-                fork: false,
-                private: false,
                 archived: false,
                 createdAt: '2026-10-12T10:00:00Z',
+                fork: false,
+                fullName: 'me/new',
+                private: false,
             },
         ]
 
@@ -47,11 +47,11 @@ describe('runAutoWatch', () => {
         const api = new FakeApi()
         api.repos = [
             {
-                fullName: 'me/secret',
-                fork: false,
-                private: true,
                 archived: false,
                 createdAt: '2026-10-12T10:00:00Z',
+                fork: false,
+                fullName: 'me/secret',
+                private: true,
             },
         ]
 
@@ -88,6 +88,8 @@ describe('runAutoWatch', () => {
 
         expect(outcome.failure).toBe('Could not list your repos: Server Error')
         expect(outcome.watched).toEqual([])
-        expect(outcome.warnings).toEqual([expect.stringContaining('actions: write')])
+        expect(outcome.warnings).toEqual([
+            expect.stringContaining('actions: write'),
+        ])
     })
 })
