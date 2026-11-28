@@ -16,9 +16,13 @@ export interface GitHubApi {
 
 const Throttled = Octokit.plugin(throttling)
 
+const silent = () => undefined
+const logNothing = { debug: silent, error: silent, info: silent, warn: silent }
+
 const client = (token: string) =>
     new Throttled({
         auth: token,
+        log: logNothing,
         throttle: {
             onRateLimit: (_after, _options, _octokit, retryCount) =>
                 retryCount < 2,

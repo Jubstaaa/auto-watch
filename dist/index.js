@@ -27045,8 +27045,11 @@ var Octokit2 = Octokit.plugin(requestLog, legacyRestEndpointMethods, paginateRes
 
 // src/api.ts
 var Throttled = Octokit2.plugin(throttling);
+var silent = () => void 0;
+var logNothing = { debug: silent, error: silent, info: silent, warn: silent };
 var client = (token) => new Throttled({
   auth: token,
+  log: logNothing,
   throttle: {
     onRateLimit: (_after, _options, _octokit, retryCount) => retryCount < 2,
     onSecondaryRateLimit: (_after, _options, _octokit, retryCount) => retryCount < 2
