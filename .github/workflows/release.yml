@@ -19,11 +19,18 @@ jobs:
             released: ${{ steps.release.outputs.release_created }}
             tag: ${{ steps.release.outputs.tag_name }}
         steps:
+            - id: app
+              uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+              with:
+                  app-id: ${{ vars.APP_ID }}
+                  private-key: ${{ secrets.APP_PRIVATE_KEY }}
+                  permission-contents: write
+                  permission-pull-requests: write
             - id: release
               uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
               with:
                   release-type: node
-                  token: ${{ secrets.RELEASE_TOKEN }}
+                  token: ${{ steps.app.outputs.token }}
 
     major-tag:
         needs: release-please
