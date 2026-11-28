@@ -21,7 +21,6 @@ jobs:
             - run: bun run typecheck
             - run: bun run test
             - run: bun run build
-            # git status, unlike git diff, also catches files the build added.
             - name: dist is up to date
               run: |
                   if [ -n "$(git status --porcelain dist/)" ]; then
