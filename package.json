@@ -1,6 +1,6 @@
 {
     "name": "auto-watch",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "packageManager": "bun@1.4.4",
     "private": true,
     "type": "module",
